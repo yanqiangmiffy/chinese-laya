@@ -219,3 +219,7 @@ __marimo__/
 .idea
 laya
 runs
+/demo-app/frontend/node_modules/
+/demo-app/frontend/dist/
+/demo-app/frontend/.vite/
+/demo-app/backend/__pycache__/

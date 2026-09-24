@@ -1,0 +1,169 @@
+<div id="laya-zh-article" style="max-width:760px;margin:0 auto;padding:0;background:#ffffff;color:#17223b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif;font-size:16px;line-height:1.85;word-break:break-word;">
+  <div style="padding:36px 32px 30px;background-color:#171a3b;background-image:linear-gradient(135deg,#111831 0%,#26214f 58%,#49347b 100%);border-radius:22px;color:#ffffff;">
+    <div style="font-size:12px;line-height:1.5;letter-spacing:2px;color:#c7c9df;font-weight:700;">LAYA FIELD NOTES&nbsp;&nbsp; / &nbsp;&nbsp;中文微调评估</div>
+    <div style="margin-top:22px;width:46px;height:4px;background:#c5f36b;border-radius:8px;"></div>
+    <h1 style="margin:18px 0 12px;color:#ffffff;font-size:36px;line-height:1.32;font-weight:800;letter-spacing:-1px;">让 Laya 在中文任务里<br>做出更稳的判断</h1>
+    <p style="margin:0;color:#d8d9e8;font-size:16px;line-height:1.8;">一次基于多语种 Laya 的 typed-decisions 微调实验：从公开数据集的中文化，到 A800 训练，再到独立测试集评估。</p>
+    <div style="margin-top:22px;display:inline-block;padding:7px 12px;border:1px solid #69668d;border-radius:20px;color:#edf0fb;font-size:12px;letter-spacing:1px;">A800&nbsp;&nbsp;·&nbsp;&nbsp;原始 → 4 → 10 轮&nbsp;&nbsp;·&nbsp;&nbsp;2026.09</div>
+    <table role="presentation" style="width:100%;margin-top:28px;border-collapse:collapse;border-top:1px solid #535371;">
+      <tr>
+        <td style="width:33.33%;padding:18px 8px 0 0;vertical-align:top;">
+          <div style="font-size:30px;line-height:1.2;font-weight:800;color:#ffffff;">76.25%</div>
+          <div style="margin-top:5px;font-size:12px;line-height:1.5;color:#c7c9df;">测试集目标类别一致率</div>
+        </td>
+        <td style="width:33.33%;padding:18px 8px 0 8px;vertical-align:top;border-left:1px solid #535371;">
+          <div style="font-size:30px;line-height:1.2;font-weight:800;color:#c5f36b;">+42.20<span style="font-size:17px;">pp</span></div>
+          <div style="margin-top:5px;font-size:12px;line-height:1.5;color:#c7c9df;">较原始 multilingual 底座</div>
+        </td>
+        <td style="width:33.33%;padding:18px 0 0 16px;vertical-align:top;border-left:1px solid #535371;">
+          <div style="font-size:30px;line-height:1.2;font-weight:800;color:#ffffff;">第 7 轮</div>
+          <div style="margin-top:5px;font-size:12px;line-height:1.5;color:#c7c9df;">10 轮实验选出的最佳权重</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="margin:24px 0 30px;padding:16px 18px;border-left:4px solid #8a71ec;background:#f4f2ff;color:#292744;font-size:15px;line-height:1.8;">
+    <strong style="color:#28224c;">先说结论：</strong>同一份 2,000 题中文测试集上，原始 multilingual 底座的目标类别一致率为 <strong>34.05%</strong>，微调后最佳检查点为 <strong>76.25%</strong>，提高 <strong>42.20 个百分点</strong>；10 轮训练计划比 4 轮高 1.30 个百分点。这里衡量的是模型与数据集目标类别的一致程度，不是现实业务正确率。
+  </div>
+
+  <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">01&nbsp; / &nbsp;实验设置</div>
+  <h2 style="margin:0 0 12px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">不是从零造模型，而是把判断能力适配到中文语境</h2>
+  <p style="margin:0 0 14px;color:#414b60;">底座使用 Laya multilingual 检查点。数据来自 <a href="https://huggingface.co/datasets/LocalLLaMA/typed-decisions" style="color:#5846bd;text-decoration:underline;">LocalLLaMA/typed-decisions</a>：将状态文本、任务描述、问题说明和标准描述翻译为中文，同时保留 JSON 字段名、ID、枚举值、问题类型、评分顺序以及原始目标标签和概率分布。</p>
+  <p style="margin:0 0 18px;color:#414b60;">这更准确地说是“基于中文化基准的专项适配”，不是一个经过真实中文业务数据验证的通用中文决策模型。</p>
+
+  <div style="margin:20px 0 10px;padding:18px 20px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#756b9c;">数据规模&nbsp; / &nbsp;1,600 个案例 · 8,000 个问题</div>
+    <table style="width:100%;margin-top:14px;border-collapse:collapse;font-size:14px;line-height:1.6;">
+      <tr style="background:#f0eff8;color:#525b70;">
+        <th style="padding:9px 8px;text-align:left;font-weight:700;">数据分区</th><th style="padding:9px 8px;text-align:right;font-weight:700;">案例数</th><th style="padding:9px 8px;text-align:right;font-weight:700;">问题数</th><th style="padding:9px 8px;text-align:left;font-weight:700;">用途</th>
+      </tr>
+      <tr><td style="padding:10px 8px;border-bottom:1px solid #e8eaf0;">训练集</td><td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e8eaf0;">960</td><td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e8eaf0;">4,800</td><td style="padding:10px 8px;border-bottom:1px solid #e8eaf0;">更新模型参数</td></tr>
+      <tr><td style="padding:10px 8px;border-bottom:1px solid #e8eaf0;">验证集</td><td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e8eaf0;">120</td><td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e8eaf0;">600</td><td style="padding:10px 8px;border-bottom:1px solid #e8eaf0;">选择最佳轮次</td></tr>
+      <tr><td style="padding:10px 8px;border-bottom:1px solid #e8eaf0;">校准集</td><td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e8eaf0;">120</td><td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e8eaf0;">600</td><td style="padding:10px 8px;border-bottom:1px solid #e8eaf0;">拟合温度参数</td></tr>
+      <tr><td style="padding:10px 8px;">测试集</td><td style="padding:10px 8px;text-align:right;">400</td><td style="padding:10px 8px;text-align:right;">2,000</td><td style="padding:10px 8px;">最终对照评估</td></tr>
+    </table>
+  </div>
+  <div style="margin:12px 0 18px;padding:15px 18px;border-radius:12px;background:#f4f7f4;color:#47554b;font-size:13px;line-height:1.75;">
+    <strong style="color:#263e31;">四类工作流均衡分布：</strong>Agent 轨迹可观测性、客户服务、发票处理、安全事件。训练集中每类 240 个案例；验证集和校准集每类各 30 个；测试集每类各 100 个。
+  </div>
+
+  <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">02&nbsp; / &nbsp;测试结果</div>
+  <h2 style="margin:0 0 8px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">微调前后：34.05% → 76.25%</h2>
+  <p style="margin:0 0 16px;color:#596276;font-size:14px;">三种检查点都在同一份 2,000 题测试集上评估。准确率按预测最高概率类别是否匹配数据集目标分布的最高概率类别计算。</p>
+  <div style="margin:16px 0 20px;padding:18px 20px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#756b9c;">同一测试集&nbsp; / &nbsp;400 个案例 · 2,000 个问题</div>
+    <table role="presentation" style="width:100%;margin-top:12px;border-collapse:collapse;font-size:14px;line-height:1.6;">
+      <tr><td style="width:132px;padding:11px 8px 11px 0;border-bottom:1px solid #e8eaf0;color:#525b70;">原始 multilingual</td><td style="padding:11px 10px;border-bottom:1px solid #e8eaf0;"><div style="height:11px;background:#eceef4;border-radius:8px;"><div style="width:34.05%;height:11px;background:#8a91a3;border-radius:8px;"></div></div></td><td style="width:76px;padding:11px 5px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;color:#525b70;">34.05%</td><td style="width:104px;padding:11px 0 11px 8px;text-align:right;border-bottom:1px solid #e8eaf0;color:#737b8d;">681 / 2,000</td></tr>
+      <tr><td style="padding:11px 8px 11px 0;border-bottom:1px solid #e8eaf0;color:#525b70;">微调 4 轮</td><td style="padding:11px 10px;border-bottom:1px solid #e8eaf0;"><div style="height:11px;background:#eceef4;border-radius:8px;"><div style="width:74.95%;height:11px;background:#8a71ec;border-radius:8px;"></div></div></td><td style="padding:11px 5px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;color:#493c9a;">74.95%</td><td style="padding:11px 0 11px 8px;text-align:right;border-bottom:1px solid #e8eaf0;color:#737b8d;">1,499 / 2,000</td></tr>
+      <tr><td style="padding:11px 8px 0 0;color:#263b28;font-weight:800;">微调 10 轮 · E7</td><td style="padding:11px 10px 0;"><div style="height:11px;background:#dce7d7;border-radius:8px;"><div style="width:76.25%;height:11px;background:#5b9b57;border-radius:8px;"></div></div></td><td style="padding:11px 5px 0;text-align:right;font-weight:800;color:#28734d;">76.25%</td><td style="padding:11px 0 0 8px;text-align:right;color:#28734d;font-weight:700;">1,525 / 2,000</td></tr>
+    </table>
+    <div style="margin:12px 0 0;padding:12px 14px;border-radius:10px;background:#f1f4f8;color:#566174;font-size:12px;line-height:1.75;">与原始底座相比，4 轮多匹配 818 题（+40.90 pp），10 轮最佳检查点多匹配 844 题（+42.20 pp）；10 轮比 4 轮多匹配 26 题（+1.30 pp）。原始模型默认温度为 1.0；在独立校准集上拟合温度得到 5.0（搜索上限），但温度缩放不改变类别排序。原始模型和本地 4 轮检查点用同一环境复测，4 轮结果与训练报告一致；10 轮结果取服务器评估记录。</div>
+  </div>
+  <p style="margin:0 0 16px;color:#596276;font-size:14px;">下表单独比较 4 轮与 10 轮训练计划的温度校准后概率指标。NLL、平方误差和分数 MAE 越低越好；准确率仅由类别排序决定。</p>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;line-height:1.55;">
+    <tr style="background:#171a3b;color:#ffffff;">
+      <th style="padding:12px 9px;text-align:left;font-weight:700;">测试指标</th><th style="padding:12px 7px;text-align:right;font-weight:700;">4 轮</th><th style="padding:12px 7px;text-align:right;font-weight:700;">10 轮</th><th style="padding:12px 9px;text-align:right;font-weight:700;">变化</th>
+    </tr>
+    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;border-bottom:1px solid #e6e3f2;">目标类别一致率</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">74.95%</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;font-weight:800;color:#29224e;">76.25%</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e6e3f2;color:#28734d;font-weight:700;">+1.30 pp</td></tr>
+    <tr><td style="padding:12px 9px;border-bottom:1px solid #e8eaf0;">Soft-target NLL</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">0.8838</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;">0.8706</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e8eaf0;color:#28734d;font-weight:700;">↓ 1.5%</td></tr>
+    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;border-bottom:1px solid #e6e3f2;">平方误差（Brier）</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">0.06355</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;font-weight:800;color:#29224e;">0.05702</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e6e3f2;color:#28734d;font-weight:700;">↓ 10.3%</td></tr>
+    <tr><td style="padding:12px 9px;border-bottom:1px solid #e8eaf0;">ECE 校准误差</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">0.1592</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;">0.1502</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e8eaf0;color:#28734d;font-weight:700;">↓ 0.0089</td></tr>
+    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;">score 期望值 MAE</td><td style="padding:12px 7px;text-align:right;">0.2662</td><td style="padding:12px 7px;text-align:right;font-weight:800;color:#29224e;">0.2358</td><td style="padding:12px 9px;text-align:right;color:#28734d;font-weight:700;">↓ 11.4%</td></tr>
+  </table>
+  <div style="margin:14px 0 0;padding:14px 16px;border-radius:12px;background:#f0f8ee;color:#304b39;font-size:14px;line-height:1.75;">
+    <strong>怎么理解这一点提升？</strong>测试集共 2,000 个问题；从 4 轮到 10 轮配置，目标类别一致的问题约多 26 个。概率分布误差和 score 预测误差也下降，因此不只是准确率单项波动。不过测试样本来自 400 个案例，不能把 2,000 个问题都视为彼此独立，也没有据此做显著性检验。
+  </div>
+
+  <div style="margin:18px 0 0;padding:18px 20px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <div style="font-size:13px;font-weight:800;color:#30384d;">误差类指标的相对降幅&nbsp; <span style="font-size:11px;font-weight:400;color:#7a8293;">（4 轮 → 10 轮；刻度 0%–12%）</span></div>
+    <table role="presentation" style="width:100%;margin-top:12px;border-collapse:collapse;font-size:12px;">
+      <tr><td style="width:125px;padding:7px 8px 7px 0;color:#596276;">Soft-target NLL</td><td style="padding:7px 6px;"><div style="height:9px;background:#eceef4;border-radius:8px;"><div style="width:12.5%;height:9px;background:#7866d7;border-radius:8px;"></div></div></td><td style="width:54px;padding:7px 0 7px 7px;text-align:right;color:#493c9a;font-weight:800;">1.5%</td></tr>
+      <tr><td style="padding:7px 8px 7px 0;color:#596276;">平方误差</td><td style="padding:7px 6px;"><div style="height:9px;background:#eceef4;border-radius:8px;"><div style="width:85.8%;height:9px;background:#7866d7;border-radius:8px;"></div></div></td><td style="padding:7px 0 7px 7px;text-align:right;color:#493c9a;font-weight:800;">10.3%</td></tr>
+      <tr><td style="padding:7px 8px 7px 0;color:#596276;">ECE</td><td style="padding:7px 6px;"><div style="height:9px;background:#eceef4;border-radius:8px;"><div style="width:46.7%;height:9px;background:#7866d7;border-radius:8px;"></div></div></td><td style="padding:7px 0 7px 7px;text-align:right;color:#493c9a;font-weight:800;">5.6%</td></tr>
+      <tr><td style="padding:7px 8px 7px 0;color:#596276;">score MAE</td><td style="padding:7px 6px;"><div style="height:9px;background:#eceef4;border-radius:8px;"><div style="width:95%;height:9px;background:#7866d7;border-radius:8px;"></div></div></td><td style="padding:7px 0 7px 7px;text-align:right;color:#493c9a;font-weight:800;">11.4%</td></tr>
+    </table>
+    <div style="margin-left:133px;display:flex;justify-content:space-between;color:#8790a0;font-size:10px;"><span>0%</span><span>6%</span><span>12%</span></div>
+  </div>
+  <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">03&nbsp; / &nbsp;为什么最终选第 7 轮</div>
+  <h2 style="margin:0 0 8px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">训练损失继续降，不代表验证表现继续变好</h2>
+  <p style="margin:0 0 16px;color:#596276;font-size:14px;">10 轮计划中的每一轮都在 600 个验证问题上计算 Soft-target NLL。选择规则是 NLL 越低越好；最低点在第 7 轮，为 <strong>0.8515</strong>。训练结束前，脚本重新加载这个最佳检查点，再用独立校准集拟合温度，最后才计算测试指标。</p>
+  <div style="padding:16px 18px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <div style="font-size:12px;color:#686f83;margin-bottom:10px;">验证集 Soft-target NLL&nbsp; / &nbsp;数值越低越好，圆点位置按 0.84–0.98 刻度</div>
+    <table role="presentation" style="width:100%;border-collapse:collapse;font-size:12px;line-height:1.4;">
+      <tr><td style="width:42px;padding:5px 4px;color:#70788b;">E1</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:87.6%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="width:58px;padding:5px 4px;text-align:right;color:#4a5366;">0.9626</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E2</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:52.5%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.9135</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E3</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:31.4%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.8840</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E4</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:14.5%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.8603</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E5</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:18.8%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.8664</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E6</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:23.3%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.8726</td></tr>
+      <tr style="background:#f1f8e8;"><td style="padding:5px 4px;color:#263b28;font-weight:800;">E7</td><td style="padding:5px 4px;"><div style="height:10px;background:#dce7d7;position:relative;border-radius:8px;"><span style="position:absolute;left:8.2%;top:-5px;color:#4d8d49;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#263b28;font-weight:800;">0.8515</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E8</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:12.4%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.8573</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E9</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:14.0%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.8595</td></tr>
+      <tr><td style="padding:5px 4px;color:#70788b;">E10</td><td style="padding:5px 4px;"><div style="height:10px;background:#eceef4;position:relative;border-radius:8px;"><span style="position:absolute;left:11.6%;top:-5px;color:#8777d5;font-size:18px;line-height:18px;">●</span></div></td><td style="padding:5px 4px;text-align:right;color:#4a5366;">0.8563</td></tr>
+      <tr><td></td><td style="padding:5px 4px 0;color:#7b8294;"><span style="float:left;">0.84&nbsp; 最佳</span><span style="float:right;">0.98</span></td><td></td></tr>
+    </table>
+  </div>
+  <p style="margin:14px 0 0;color:#414b60;">训练平均损失从第 1 轮的 0.830 降到第 9 轮的 0.491，但第 10 轮回升到 0.528。与此同时，验证 NLL 在第 7 轮达到最低后没有再创新低。这是停止训练并保留最佳轮次的理由；它提示后段有轻微过拟合风险，但不能仅凭曲线断定模型已严重过拟合。</p>
+
+  <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">04&nbsp; / &nbsp;复现配置</div>
+  <h2 style="margin:0 0 14px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">同一底座与数据，对比两种训练计划</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;line-height:1.65;">
+    <tr style="background:#f0eff8;"><th style="padding:10px;text-align:left;color:#525b70;">项目</th><th style="padding:10px;text-align:left;color:#525b70;">设置</th></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">底座</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">Laya multilingual</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">硬件</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">NVIDIA A800 80GB</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">训练轮数</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">4 轮对照 10 轮；随机种子 42</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">批次</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">micro-batch 2 × 梯度累积 8</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">输入预算</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">max_len 1024，head_max_len 256</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">初始学习率</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">encoder 2.5e-5，decision head 1e-4</td></tr>
+    <tr><td style="padding:10px;color:#626b7c;">训练策略</td><td style="padding:10px;">微调 encoder 与决策头；soft-target CE + RLCD 风格奖励（log / spherical，score 另含序数 RPS）；按验证 NLL 选权重并单独拟合温度</td></tr>
+  </table>
+  <div style="margin:14px 0 0;padding:14px 16px;border-left:4px solid #e5a64b;background:#fff7e9;color:#53432e;font-size:13px;line-height:1.75;">
+    说明：4 轮与 10 轮是分别从同一底座启动的实验，不是把 4 轮权重接着训练 6 轮。轮数会改变 cosine 学习率与探索噪声的衰减日程，因此这是“两个训练配置”的比较，不是单变量的严格因果实验。缺少 `Act/Escalate` 监督，所以该决策头被冻结，结果不能用于评估自动执行/升级能力。
+  </div>
+
+  <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">05&nbsp; / &nbsp;交互 Demo</div>
+  <h2 style="margin:0 0 8px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">把离线分数，变成 9 个可以亲手试的场景</h2>
+  <p style="margin:0 0 14px;color:#414b60;">为了检验模型不只会跑 benchmark，我还做了「中文 Laya 场景验证台」：React 页面提交中文状态和 typed questions，FastAPI 在本机加载 checkpoint 并调用 Laya；模型判断事件、风险、路由或下一步动作，页面展示结构化答案和概率分布。推理在本机完成，不经过外部模型服务，也不会真的派单、付款、发消息或操作游戏。</p>
+  <div style="margin:18px 0;padding:18px 20px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#756b9c;">9 个场景&nbsp; / &nbsp;每类 3 条参考样例，共 27 条</div>
+    <table role="presentation" style="width:100%;margin-top:12px;border-collapse:collapse;font-size:14px;line-height:1.7;">
+      <tr><td style="width:30%;padding:11px 9px;border-bottom:1px solid #e8eaf0;vertical-align:top;font-weight:800;color:#29224e;">生活与服务</td><td style="padding:11px 9px;border-bottom:1px solid #e8eaf0;color:#4a5366;">小区生活 · 今天吃什么 · 中文客服分流</td></tr>
+      <tr><td style="padding:11px 9px;border-bottom:1px solid #e8eaf0;vertical-align:top;font-weight:800;color:#29224e;">Agent 与安全</td><td style="padding:11px 9px;border-bottom:1px solid #e8eaf0;color:#4a5366;">个人事务 Agent · 电脑操作 Agent · Agent 安全审查</td></tr>
+      <tr><td style="padding:11px 9px;vertical-align:top;font-weight:800;color:#29224e;">知识与互动</td><td style="padding:11px 9px;color:#4a5366;">RAG 证据过滤 · NPC 小镇 · 游戏战术选择</td></tr>
+    </table>
+  </div>
+  <p style="margin:0 0 12px;color:#414b60;">每个场景都可以逐条运行、跑完本场景，或一键运行全部 27 条样例。结果区展示模型选项、各选项概率、`answer_confidence` 和 `confidence` 字段，并对照前端保存的参考标签；同时显示单次延迟、批次一致率和原始 JSON。不同问题类型的置信度字段语义不同，界面保留字段名供核对。自定义输入也能推理，但不会混入参考标签一致率。</p>
+  <div style="margin:12px 0;padding:14px 16px;border-left:4px solid #e5a64b;background:#fff7e9;color:#53432e;font-size:13px;line-height:1.75;">
+    <strong>模型版本要对上：</strong>Demo 后端通过 <code>MODEL_PATH</code> 指定本地检查点。项目当前默认仍指向较早的 `runs/laya-typed-decisions-zh`；要演示本文的 10 轮实验，请启动后端时将它设为 `runs/laya-typed-decisions-zh-v2`。这个目录里的最佳权重来自第 7 轮。
+  </div>
+  <p style="margin:0 0 18px;color:#596276;font-size:14px;">Demo 的 27 条样例适合现场观察模型如何选择、如何分配概率，不等同于上面的 2,000 题测试集，也不足以证明真实业务效果。参考标签只用于前端对照，不会发给模型；界面里的阈值只提示“建议复核”，不触发任何外部动作。</p>
+
+  <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">06&nbsp; / &nbsp;结果边界与下一步</div>
+  <h2 style="margin:0 0 12px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">这是一个扎实的起点，不是上线通行证</h2>
+  <ol style="margin:0;padding-left:22px;color:#414b60;">
+    <li style="margin:0 0 9px;"><strong>目标一致不等于业务正确。</strong>本报告的指标衡量模型与数据集目标分布的吻合度；这些目标并非独立的人类业务复核，也不能直接说明退款、风控或分流决策的真实收益。</li>
+    <li style="margin:0 0 9px;"><strong>中文输入来自机器翻译。</strong>文本字段由 Ternary-Bonsai-2-27B 中文化，结构字段和目标标签保留。发布或接入前应抽检术语、否定句、金额和安全事件表述。</li>
+    <li style="margin:0 0 9px;"><strong>这是迭代测试，不是全新盲测。</strong>4 轮和 10 轮结果都查看了同一测试集。后续不要继续用这 2,000 个问题挑参数；应另建一批人工审核的原生中文业务集。</li>
+    <li style="margin:0 0 9px;"><strong>校准仍有空间。</strong>温度拟合后 ECE 为 0.1502。暂时不要仅凭模型置信度设自动执行阈值；先做按工作流、问题类型和置信区间的分层评估。</li>
+    <li style="margin:0 0 9px;"><strong>已补测原始底座，但标签一致不等于现实正确。</strong>原始 multilingual 为 34.05%，10 轮最佳检查点为 76.25%；这说明微调显著提高了对这份中文化数据集目标类别的匹配度，不代表同幅度的真实业务收益。</li>
+    <li style="margin:0;"><strong>暂时没有分组测试分数。</strong>现有日志只给整体指标，不能确认提升是否均匀覆盖四类工作流和 choice / score / noul 三种问题类型。</li>
+  </ol>
+
+  <div style="margin:22px 0;padding:18px 20px;border-radius:14px;background:#f2f7ec;color:#304534;">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#65844d;">下一步建议</div>
+    <div style="margin-top:7px;font-size:15px;line-height:1.8;">先保留 10 轮实验里由第 7 轮选出的检查点；准备每类 75 个、共 300 个经人工审核的原生中文案例；在同一套案例上并列测零样本底座与微调模型，再报告总体、四类工作流、三种问题类型和高置信错误。</div>
+  </div>
+
+  <div style="margin:30px 0 0;padding:22px 22px 20px;border-radius:16px;background:#171a3b;color:#ffffff;">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;color:#c5f36b;">结论</div>
+    <p style="margin:8px 0 0;color:#f2f2fa;font-size:18px;line-height:1.7;font-weight:700;">在这次中文化 typed-decisions 评估中，10 轮训练计划确实带来了温和而一致的改进；最好的模型停在第 7 轮。下一阶段的关键不再是盲目加轮数，而是用人工审核的原生中文业务数据检验它学到的判断能不能迁移。</p>
+  </div>
+
+  <div style="margin:24px 0 0;padding-top:16px;border-top:1px solid #e7e9ef;color:#737b8d;font-size:12px;line-height:1.8;">
+    <strong style="color:#525b70;">参考与复现说明</strong><br>
+    评估报告结构参考 Laya 上游项目的 benchmark 写法，重点呈现数据、测试指标与结果限制。本实验为个人训练记录，非 Laya 官方 benchmark；因底座、中文化方式、切分与训练过程不同，不直接与上游公布分数横向排名。<br>
+    <a href="https://github.com/NandhaKishorM/laya/tree/main" style="color:#5846bd;text-decoration:underline;">Laya 项目主页</a>&nbsp; · &nbsp;<a href="https://github.com/NandhaKishorM/laya/blob/main/BENCHMARKS.md" style="color:#5846bd;text-decoration:underline;">上游 BENCHMARKS</a>&nbsp; · &nbsp;<a href="https://huggingface.co/datasets/LocalLLaMA/typed-decisions" style="color:#5846bd;text-decoration:underline;">typed-decisions 数据集</a><br>
+    训练日期：2026-09-24&nbsp; · &nbsp;测试问题数：2,000&nbsp; · &nbsp;比较版本：原始 multilingual、4 轮、10 轮（最佳检查点为第 7 轮）
+  </div>
+</div>

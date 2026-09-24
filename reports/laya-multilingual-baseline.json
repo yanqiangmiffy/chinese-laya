@@ -1,0 +1,58 @@
+{
+  "checkpoint": "models/laya/multilingual",
+  "dataset": "datasets/all_zh",
+  "device": "NVIDIA GeForce RTX 3090",
+  "runtime": {
+    "torch": "2.13.0+cu130",
+    "transformers": "5.5.0",
+    "laya": "0.3.20"
+  },
+  "max_len": 1024,
+  "head_max_len": 256,
+  "test_native_temperature": {
+    "questions": 2000,
+    "accuracy_vs_target_argmax": 0.3405,
+    "soft_target_nll": 1.8873292553741485,
+    "squared_error_to_target": 0.48001571831945833,
+    "ece_vs_target_argmax": 0.3289934646090842,
+    "score_expected_value_mae": 0.8025658880546689
+  },
+  "calibration_temperatures_fitted_on_calib": [
+    5.0,
+    5.0,
+    5.0
+  ],
+  "test_calibrated_on_calib": {
+    "questions": 2000,
+    "accuracy_vs_target_argmax": 0.3405,
+    "soft_target_nll": 1.2374026024192573,
+    "squared_error_to_target": 0.26161821117695944,
+    "ece_vs_target_argmax": 0.07643989937969309,
+    "score_expected_value_mae": 0.7172196147590876
+  },
+  "same_runtime_4epoch_comparison_check": {
+    "checkpoint": "runs/laya-typed-decisions-zh",
+    "runtime_transformers": "5.5.0",
+    "calibration_temperatures_fit": [
+      1.168415904045105,
+      1.3500272035598755,
+      1.36227285861969
+    ],
+    "test_native": {
+      "questions": 2000,
+      "accuracy_vs_target_argmax": 0.7495,
+      "soft_target_nll": 0.8905697446679697,
+      "squared_error_to_target": 0.06665900379811027,
+      "ece_vs_target_argmax": 0.11008963524363935,
+      "score_expected_value_mae": 0.2581552697089501
+    },
+    "test_calibrated": {
+      "questions": 2000,
+      "accuracy_vs_target_argmax": 0.7495,
+      "soft_target_nll": 0.8838027826044709,
+      "squared_error_to_target": 0.0635517584068457,
+      "ece_vs_target_argmax": 0.15915854342165403,
+      "score_expected_value_mae": 0.2662011861382052
+    }
+  }
+}
