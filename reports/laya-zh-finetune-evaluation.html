@@ -54,7 +54,7 @@ body { margin: 0; padding: 28px 16px 64px; background: #f1f0ec; color: #17223b; 
 
   <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">01&nbsp; / &nbsp;实验设置</div>
   <h2 style="margin:0 0 12px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">不是从零造模型，而是把判断能力适配到中文语境</h2>
-  <p style="margin:0 0 14px;color:#414b60;">底座使用 Laya multilingual 检查点。数据来自 <a href="https://huggingface.co/datasets/LocalLLaMA/typed-decisions" style="color:#5846bd;text-decoration:underline;">LocalLLaMA/typed-decisions</a>：将状态文本、任务描述、问题说明和标准描述翻译为中文，同时保留 JSON 字段名、ID、枚举值、问题类型、评分顺序以及原始目标标签和概率分布。</p>
+  <p style="margin:0 0 14px;color:#414b60;">底座使用 Laya multilingual 检查点。数据来自 <a href="https://huggingface.co/datasets/LocalLLaMA/typed-decisions" style="color:#5846bd;text-decoration:underline;">LocalLLaMA/typed-decisions</a>：由 Ternary-Bonsai-2-27B 将状态文本、任务描述、问题说明和标准描述翻译为中文，同时保留 JSON 字段名、ID、枚举值、问题类型、评分顺序以及原始目标标签和概率分布。数据按案例划分为 train / valid / calib / test；训练脚本在开训前检查各分区的 ID、group_id 和状态不交叉。</p>
   <p style="margin:0 0 18px;color:#414b60;">这更准确地说是“基于中文化基准的专项适配”，不是一个经过真实中文业务数据验证的通用中文决策模型。</p>
 
   <div style="margin:20px 0 10px;padding:18px 20px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
@@ -73,6 +73,11 @@ body { margin: 0; padding: 28px 16px 64px; background: #f1f0ec; color: #17223b; 
     <strong style="color:#263e31;">四类工作流均衡分布：</strong>Agent 轨迹可观测性、客户服务、发票处理、安全事件。训练集中每类 240 个案例；验证集和校准集每类各 30 个；测试集每类各 100 个。
   </div>
 
+  <figure style="margin:22px 0 0;padding:14px 14px 10px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <img src="../assets/rlcd_model_diagram_zh_v2.png" alt="本项目中文 typed-decisions 微调流程：输入状态与 typed question，Laya 输出候选 logits；训练结合 soft-target 交叉熵和 RLCD 风格的分布奖励策略优化；最后选择验证集最佳权重，使用独立校准集拟合温度，并在测试集评估。" style="display:block;width:100%;height:auto;border-radius:8px;">
+    <figcaption style="padding:11px 4px 0;color:#596276;font-size:13px;line-height:1.75;"><strong style="color:#30384d;">图 1｜本次训练脚本的目标函数与评估顺序。</strong>模型先学习数据集提供的软目标分布，再通过多次采样与组内相对优势加入策略优化；按验证集 Soft-target NLL 选出检查点后，才在独立校准集上拟合温度。图中是本项目实现的 RLCD 风格流程示意，并非 TypeSafe 官方实现或官方 benchmark；<code>Act/Escalate</code> 头没有对应监督，本次被冻结。</figcaption>
+  </figure>
+
   <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">02&nbsp; / &nbsp;测试结果</div>
   <h2 style="margin:0 0 8px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">微调前后：34.05% → 76.25%</h2>
   <p style="margin:0 0 16px;color:#596276;font-size:14px;">三种检查点都在同一份 2,000 题测试集上评估。准确率按预测最高概率类别是否匹配数据集目标分布的最高概率类别计算。</p>
@@ -85,20 +90,25 @@ body { margin: 0; padding: 28px 16px 64px; background: #f1f0ec; color: #17223b; 
     </table>
     <div style="margin:12px 0 0;padding:12px 14px;border-radius:10px;background:#f1f4f8;color:#566174;font-size:12px;line-height:1.75;">与原始底座相比，4 轮多匹配 818 题（+40.90 pp），10 轮最佳检查点多匹配 844 题（+42.20 pp）；10 轮比 4 轮多匹配 26 题（+1.30 pp）。原始模型默认温度为 1.0；在独立校准集上拟合温度得到 5.0（搜索上限），但温度缩放不改变类别排序。原始模型和本地 4 轮检查点用同一环境复测，4 轮结果与训练报告一致；10 轮结果取服务器评估记录。</div>
   </div>
-  <p style="margin:0 0 16px;color:#596276;font-size:14px;">下表单独比较 4 轮与 10 轮训练计划的温度校准后概率指标。NLL、平方误差和分数 MAE 越低越好；准确率仅由类别排序决定。</p>
+  <p style="margin:0 0 16px;color:#596276;font-size:14px;">下表汇总原始 multilingual、4 轮和 10 轮最佳检查点在同一测试集上的结果。概率指标使用 600 题校准集分别拟合温度后计算；准确率按目标类别一致度计算，温度缩放不会改变预测类别。NLL、平方误差和 score MAE 越低越好。</p>
   <table style="width:100%;border-collapse:collapse;font-size:14px;line-height:1.55;">
     <tr style="background:#171a3b;color:#ffffff;">
-      <th style="padding:12px 9px;text-align:left;font-weight:700;">测试指标</th><th style="padding:12px 7px;text-align:right;font-weight:700;">4 轮</th><th style="padding:12px 7px;text-align:right;font-weight:700;">10 轮</th><th style="padding:12px 9px;text-align:right;font-weight:700;">变化</th>
+      <th style="padding:12px 9px;text-align:left;font-weight:700;">测试指标</th><th style="padding:12px 7px;text-align:right;font-weight:700;">原始模型</th><th style="padding:12px 7px;text-align:right;font-weight:700;">微调 4 轮</th><th style="padding:12px 9px;text-align:right;font-weight:700;">微调 10 轮 · E7</th>
     </tr>
-    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;border-bottom:1px solid #e6e3f2;">目标类别一致率</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">74.95%</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;font-weight:800;color:#29224e;">76.25%</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e6e3f2;color:#28734d;font-weight:700;">+1.30 pp</td></tr>
-    <tr><td style="padding:12px 9px;border-bottom:1px solid #e8eaf0;">Soft-target NLL</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">0.8838</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;">0.8706</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e8eaf0;color:#28734d;font-weight:700;">↓ 1.5%</td></tr>
-    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;border-bottom:1px solid #e6e3f2;">平方误差（Brier）</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">0.06355</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;font-weight:800;color:#29224e;">0.05702</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e6e3f2;color:#28734d;font-weight:700;">↓ 10.3%</td></tr>
-    <tr><td style="padding:12px 9px;border-bottom:1px solid #e8eaf0;">ECE 校准误差</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">0.1592</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;">0.1502</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e8eaf0;color:#28734d;font-weight:700;">↓ 0.0089</td></tr>
-    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;">score 期望值 MAE</td><td style="padding:12px 7px;text-align:right;">0.2662</td><td style="padding:12px 7px;text-align:right;font-weight:800;color:#29224e;">0.2358</td><td style="padding:12px 9px;text-align:right;color:#28734d;font-weight:700;">↓ 11.4%</td></tr>
+    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;border-bottom:1px solid #e6e3f2;">目标类别一致率</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">34.05%</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">74.95%</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e6e3f2;font-weight:800;color:#29224e;">76.25%</td></tr>
+    <tr><td style="padding:12px 9px;border-bottom:1px solid #e8eaf0;">Soft-target NLL ↓</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">1.2374</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">0.8838</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;">0.8706</td></tr>
+    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;border-bottom:1px solid #e6e3f2;">平方误差（Brier）↓</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">0.26162</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e6e3f2;">0.06355</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e6e3f2;font-weight:800;color:#29224e;">0.05702</td></tr>
+    <tr><td style="padding:12px 9px;border-bottom:1px solid #e8eaf0;">ECE（按目标类别）</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">0.0764</td><td style="padding:12px 7px;text-align:right;border-bottom:1px solid #e8eaf0;">0.1592</td><td style="padding:12px 9px;text-align:right;border-bottom:1px solid #e8eaf0;font-weight:800;">0.1502</td></tr>
+    <tr style="background:#f8f7ff;"><td style="padding:12px 9px;">score 期望值 MAE ↓</td><td style="padding:12px 7px;text-align:right;">0.7172</td><td style="padding:12px 7px;text-align:right;">0.2662</td><td style="padding:12px 9px;text-align:right;font-weight:800;color:#29224e;">0.2358</td></tr>
   </table>
   <div style="margin:14px 0 0;padding:14px 16px;border-radius:12px;background:#f0f8ee;color:#304b39;font-size:14px;line-height:1.75;">
-    <strong>怎么理解这一点提升？</strong>测试集共 2,000 个问题；从 4 轮到 10 轮配置，目标类别一致的问题约多 26 个。概率分布误差和 score 预测误差也下降，因此不只是准确率单项波动。不过测试样本来自 400 个案例，不能把 2,000 个问题都视为彼此独立，也没有据此做显著性检验。
+    <strong>怎样读这张表？</strong>原始模型、4 轮、10 轮的概率指标均使用独立校准集拟合温度；原始模型拟合到搜索上限 T=5.0。原始模型未校准（T=1）的 NLL/Brier/ECE/score MAE 分别为 1.8873 / 0.48002 / 0.3290 / 0.8026。相对校准后的原始模型，10 轮最佳权重的 NLL、平方误差和 score MAE 分别降低 29.6%、78.2%、67.1%；ECE 则从 0.0764 升至 0.1502。ECE 按目标分布的最高概率类别分 15 桶计算，基线温度又触及搜索上限，所以不能只看 ECE，也不能说每个指标都提升。测试有 2,000 题但仅 400 个案例，题目并非完全独立；当前只有单次训练，也未做多随机种子或显著性检验。
   </div>
+
+  <figure style="margin:18px 0;padding:14px 14px 10px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <img src="../assets/rlcd_phishing_calibration_example.png" alt="概率校准概念示意：模型给一封邮件 0.80 的钓鱼概率；在大量相似预测中，如果校准良好，约 80% 应属于钓鱼邮件。风险阈值将高风险样本拦截或转人工复核。" style="display:block;width:100%;height:auto;border-radius:8px;">
+    <figcaption style="padding:11px 4px 0;color:#596276;font-size:13px;line-height:1.75;"><strong style="color:#30384d;">图 2｜为什么概率需要校准。</strong>若一批相似邮件都被赋予约 0.80 的钓鱼概率，长期来看其中应约有 80% 确为钓鱼，才称得上校准良好。示意图中的 0.80、100 封邮件和阈值均为教学假设，不是本次测试集统计，也不是模型上线策略；真实阈值必须由业务成本和人工核验数据决定。</figcaption>
+  </figure>
 
   <div style="margin:18px 0 0;padding:18px 20px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
     <div style="font-size:13px;font-weight:800;color:#30384d;">误差类指标的相对降幅&nbsp; <span style="font-size:11px;font-weight:400;color:#7a8293;">（4 轮 → 10 轮；刻度 0%–12%）</span></div>
@@ -132,24 +142,32 @@ body { margin: 0; padding: 28px 16px 64px; background: #f1f0ec; color: #17223b; 
   <p style="margin:14px 0 0;color:#414b60;">训练平均损失从第 1 轮的 0.830 降到第 9 轮的 0.491，但第 10 轮回升到 0.528。与此同时，验证 NLL 在第 7 轮达到最低后没有再创新低。这是停止训练并保留最佳轮次的理由；它提示后段有轻微过拟合风险，但不能仅凭曲线断定模型已严重过拟合。</p>
 
   <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">04&nbsp; / &nbsp;复现配置</div>
-  <h2 style="margin:0 0 14px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">同一底座与数据，对比两种训练计划</h2>
+  <h2 style="margin:0 0 14px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">模型、数据与训练设置</h2>
   <table style="width:100%;border-collapse:collapse;font-size:14px;line-height:1.65;">
     <tr style="background:#f0eff8;"><th style="padding:10px;text-align:left;color:#525b70;">项目</th><th style="padding:10px;text-align:left;color:#525b70;">设置</th></tr>
-    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">底座</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">Laya multilingual</td></tr>
-    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">硬件</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">NVIDIA A800 80GB</td></tr>
-    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">训练轮数</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">4 轮对照 10 轮；随机种子 42</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">原始检查点</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;"><code>models/laya/multilingual</code>；未经本项目微调，默认温度为 1.0</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">微调检查点</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">4 轮：<code>runs/laya-typed-decisions-zh</code>；10 轮计划的最佳权重：<code>runs/laya-typed-decisions-zh-v2</code>（第 7 轮）</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">模型结构</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">Laya multilingual，mmBERT-base encoder + 2 层 typed-decision head</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">中文化数据</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">LocalLLaMA/typed-decisions；由 Ternary-Bonsai-2-27B 翻译文本字段，保留结构与原始目标分布</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">训练硬件</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">NVIDIA A800 80GB</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">训练轮数</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">4 轮与 10 轮计划各自从同一底座启动；随机种子 42；10 轮计划按验证 NLL 选出第 7 轮</td></tr>
     <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">批次</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">micro-batch 2 × 梯度累积 8</td></tr>
     <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">输入预算</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">max_len 1024，head_max_len 256</td></tr>
-    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">初始学习率</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">encoder 2.5e-5，decision head 1e-4</td></tr>
-    <tr><td style="padding:10px;color:#626b7c;">训练策略</td><td style="padding:10px;">微调 encoder 与决策头；soft-target CE + RLCD 风格奖励（log / spherical，score 另含序数 RPS）；按验证 NLL 选权重并单独拟合温度</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">初始学习率</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">encoder 2.5e-5，decision head 1e-4；优化器 AdamW，余弦学习率调度</td></tr>
+    <tr><td style="padding:10px;border-bottom:1px solid #e8eaf0;color:#626b7c;">训练策略</td><td style="padding:10px;border-bottom:1px solid #e8eaf0;">微调 encoder 与决策头；soft-target CE + RLCD 风格奖励（log / spherical，score 另含序数 RPS）；按验证 NLL 选权重并单独拟合温度</td></tr>
+    <tr><td style="padding:10px;color:#626b7c;">复测与环境</td><td style="padding:10px;">原始模型和本地 4 轮检查点在 RTX 3090 上复测，4 轮准确率与训练报告一致；10 轮数据来自服务器评估记录（A800 80GB）。详细基线数值与运行版本保存在 <code>reports/laya-multilingual-baseline.json</code>。</td></tr>
   </table>
   <div style="margin:14px 0 0;padding:14px 16px;border-left:4px solid #e5a64b;background:#fff7e9;color:#53432e;font-size:13px;line-height:1.75;">
-    说明：4 轮与 10 轮是分别从同一底座启动的实验，不是把 4 轮权重接着训练 6 轮。轮数会改变 cosine 学习率与探索噪声的衰减日程，因此这是“两个训练配置”的比较，不是单变量的严格因果实验。缺少 `Act/Escalate` 监督，所以该决策头被冻结，结果不能用于评估自动执行/升级能力。
+    说明：4 轮与 10 轮是分别从同一底座启动的实验，不是把 4 轮权重接着训练 6 轮。轮数会改变 cosine 学习率与探索噪声的衰减日程，因此这是“两个训练配置”的比较，不是单变量的严格因果实验。缺少 <code>Act/Escalate</code> 监督，所以该决策头被冻结，结果不能用于评估自动执行/升级能力。
   </div>
 
   <div style="margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#756b9c;">05&nbsp; / &nbsp;交互 Demo</div>
   <h2 style="margin:0 0 8px;color:#17223b;font-size:25px;line-height:1.4;font-weight:800;">把离线分数，变成 9 个可以亲手试的场景</h2>
   <p style="margin:0 0 14px;color:#414b60;">为了检验模型不只会跑 benchmark，我还做了「中文 Laya 场景验证台」：React 页面提交中文状态和 typed questions，FastAPI 在本机加载 checkpoint 并调用 Laya；模型判断事件、风险、路由或下一步动作，页面展示结构化答案和概率分布。推理在本机完成，不经过外部模型服务，也不会真的派单、付款、发消息或操作游戏。</p>
+  <figure style="margin:18px 0;padding:14px 14px 10px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
+    <img src="../assets/demo.png" alt="中文 Laya 场景验证台截图：个人事务 Agent 页面左侧输入场景状态，右侧展示 choice、score 和 noul 三类问题的答案、候选概率、置信度及参考标签对照。" style="display:block;width:100%;height:auto;border-radius:8px;">
+    <figcaption style="padding:11px 4px 0;color:#596276;font-size:13px;line-height:1.75;"><strong style="color:#30384d;">图 3｜本地 Demo 的一次交互画面。</strong>截图展示个人事务 Agent 场景：左侧输入状态与权限上下文，右侧并列呈现路由选择、紧急程度评分和是否需要确认三类输出及各自概率。它用于说明 Demo 如何呈现模型结果，不是 2,000 题测试集的汇总。截图当时加载的是 <code>laya-typed-decisions-zh</code>，运行设备标记为 RTX 3090；若要展示 10 轮计划的最佳权重，需将 Demo 的 <code>MODEL_PATH</code> 指向 <code>runs/laya-typed-decisions-zh-v2</code>（第 7 轮检查点）。</figcaption>
+  </figure>
   <div style="margin:18px 0;padding:18px 20px;border:1px solid #e4e7ee;border-radius:14px;background:#fbfcff;">
     <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#756b9c;">9 个场景&nbsp; / &nbsp;每类 3 条参考样例，共 27 条</div>
     <table role="presentation" style="width:100%;margin-top:12px;border-collapse:collapse;font-size:14px;line-height:1.7;">
@@ -158,9 +176,9 @@ body { margin: 0; padding: 28px 16px 64px; background: #f1f0ec; color: #17223b; 
       <tr><td style="padding:11px 9px;vertical-align:top;font-weight:800;color:#29224e;">知识与互动</td><td style="padding:11px 9px;color:#4a5366;">RAG 证据过滤 · NPC 小镇 · 游戏战术选择</td></tr>
     </table>
   </div>
-  <p style="margin:0 0 12px;color:#414b60;">每个场景都可以逐条运行、跑完本场景，或一键运行全部 27 条样例。结果区展示模型选项、各选项概率、`answer_confidence` 和 `confidence` 字段，并对照前端保存的参考标签；同时显示单次延迟、批次一致率和原始 JSON。不同问题类型的置信度字段语义不同，界面保留字段名供核对。自定义输入也能推理，但不会混入参考标签一致率。</p>
+  <p style="margin:0 0 12px;color:#414b60;">每个场景都可以逐条运行、跑完本场景，或一键运行全部 27 条样例。结果区展示模型选项、各选项概率、<code>answer_confidence</code> 和 <code>confidence</code> 字段，并对照前端保存的参考标签；同时显示单次延迟、批次一致率和原始 JSON。不同问题类型的置信度字段语义不同，界面保留字段名供核对。自定义输入也能推理，但不会混入参考标签一致率。</p>
   <div style="margin:12px 0;padding:14px 16px;border-left:4px solid #e5a64b;background:#fff7e9;color:#53432e;font-size:13px;line-height:1.75;">
-    <strong>模型版本要对上：</strong>Demo 后端通过 <code>MODEL_PATH</code> 指定本地检查点。项目当前默认仍指向较早的 `runs/laya-typed-decisions-zh`；要演示本文的 10 轮实验，请启动后端时将它设为 `runs/laya-typed-decisions-zh-v2`。这个目录里的最佳权重来自第 7 轮。
+    <strong>模型版本要对上：</strong>Demo 后端通过 <code>MODEL_PATH</code> 指定本地检查点。项目当前默认仍指向较早的 <code>runs/laya-typed-decisions-zh</code>；要演示本文的 10 轮实验，请启动后端时将它设为 <code>runs/laya-typed-decisions-zh-v2</code>。这个目录里的最佳权重来自第 7 轮。
   </div>
   <p style="margin:0 0 18px;color:#596276;font-size:14px;">Demo 的 27 条样例适合现场观察模型如何选择、如何分配概率，不等同于上面的 2,000 题测试集，也不足以证明真实业务效果。参考标签只用于前端对照，不会发给模型；界面里的阈值只提示“建议复核”，不触发任何外部动作。</p>
 
@@ -182,7 +200,7 @@ body { margin: 0; padding: 28px 16px 64px; background: #f1f0ec; color: #17223b; 
 
   <div style="margin:30px 0 0;padding:22px 22px 20px;border-radius:16px;background:#171a3b;color:#ffffff;">
     <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;color:#c5f36b;">结论</div>
-    <p style="margin:8px 0 0;color:#f2f2fa;font-size:18px;line-height:1.7;font-weight:700;">在这次中文化 typed-decisions 评估中，10 轮训练计划确实带来了温和而一致的改进；最好的模型停在第 7 轮。下一阶段的关键不再是盲目加轮数，而是用人工审核的原生中文业务数据检验它学到的判断能不能迁移。</p>
+    <p style="margin:8px 0 0;color:#f2f2fa;font-size:18px;line-height:1.7;font-weight:700;">在这份机器翻译的中文基准上，原始 multilingual 的目标类别一致率为 34.05%，微调后最佳检查点达到 76.25%，提高 42.20 个百分点；4 轮到 10 轮计划只再增加 1.30 个百分点。提升说明模型更贴合这份中文化数据的目标分布，但不能等同于真实中文业务准确率。下一步应使用人工审核的原生中文案例和多个随机种子检验迁移效果。</p>
   </div>
 
   <div style="margin:24px 0 0;padding-top:16px;border-top:1px solid #e7e9ef;color:#737b8d;font-size:12px;line-height:1.8;">
