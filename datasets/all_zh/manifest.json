@@ -1,0 +1,54 @@
+{
+  "source": "G:\\pretrained_models\\typed-decisions\\all",
+  "translation_model": "Ternary-Bonsai-2-27B",
+  "translated_fields": [
+    "state.task/constraints/thread.text/alert.description/alert.evidence/delivery.condition/purchase_order.freight_terms",
+    "questions.instructions/criteria descriptions"
+  ],
+  "preserved": [
+    "JSON keys",
+    "IDs and enum values",
+    "question types",
+    "score order",
+    "gold labels and probabilities"
+  ],
+  "train_split_policy": "Original train stratified by workflow: 80% train, 10% valid, 10% calib; original test untouched.",
+  "counts": {
+    "train": {
+      "cases": 960,
+      "by_workflow": {
+        "agent_trace_observability": 240,
+        "customer_service": 240,
+        "invoice_processing": 240,
+        "security_incidents": 240
+      }
+    },
+    "valid": {
+      "cases": 120,
+      "by_workflow": {
+        "agent_trace_observability": 30,
+        "customer_service": 30,
+        "invoice_processing": 30,
+        "security_incidents": 30
+      }
+    },
+    "calib": {
+      "cases": 120,
+      "by_workflow": {
+        "agent_trace_observability": 30,
+        "customer_service": 30,
+        "invoice_processing": 30,
+        "security_incidents": 30
+      }
+    },
+    "test": {
+      "cases": 400,
+      "by_workflow": {
+        "agent_trace_observability": 100,
+        "customer_service": 100,
+        "invoice_processing": 100,
+        "security_incidents": 100
+      }
+    }
+  }
+}

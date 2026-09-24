@@ -1,0 +1,16 @@
+CUDA_VISIBLE_DEVICES=0 python laya_finetune_minimal.py \
+  --model ./models/laya/multilingual \
+  --train ./datasets/all_zh/train.jsonl \
+  --valid ./datasets/all_zh/valid.jsonl \
+  --calib ./datasets/all_zh/calib.jsonl \
+  --test ./datasets/all_zh/test.jsonl \
+  --out ./runs/laya-typed-decisions-zh \
+  --epochs 4 \
+  --batch-size 2 \
+  --grad-accum 8 \
+  --max-len 1024 \
+  --head-max-len 256 \
+  --lr-encoder 2.5e-5 \
+  --lr-head 1e-4 \
+  --rl-weight 1.0 \
+  --device cuda

@@ -17,9 +17,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import math
 import random
 import sys
+import time
 from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
@@ -28,9 +30,44 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+try:
+    from tqdm import tqdm
+except ImportError as exc:
+    raise SystemExit("tqdm is required for training progress bars; install it with: python -m pip install tqdm") from exc
 
 TYPE_IDS = {"choice": 0, "score": 1, "noul": 2}
 TEMP_LO, TEMP_HI = 0.5, 5.0
+
+
+class TqdmLoggingHandler(logging.Handler):
+    """Keep timestamped console logs from overwriting the active progress bar."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            tqdm.write(self.format(record), file=sys.stderr)
+        except Exception:
+            self.handleError(record)
+
+
+def configure_logger(log_file: Path) -> logging.Logger:
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("laya_finetune")
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    for handler in logger.handlers[:]:
+        handler.close()
+        logger.removeHandler(handler)
+    formatter = logging.Formatter(
+        fmt="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    console_handler = TqdmLoggingHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    return logger
 
 
 def json_field(value: Any) -> Any:
@@ -111,7 +148,7 @@ def ordered_target(question: dict[str, Any], gold: dict[str, Any]) -> list[float
 def encode_cases(cases, tokenizer, max_len: int, head_max_len: int):
     from laya.common import build_sequence
     items = []
-    for row in cases:
+    for row in tqdm(cases, desc="Encoding", unit="case", dynamic_ncols=True, leave=False):
         for qid, question in row["questions"].items():
             if qid not in row["gold"]:
                 raise ValueError(f"Missing gold for {row['id']}/{qid}")
@@ -200,10 +237,11 @@ def decision_loss(logits, target, mask, qtype, sigma: float, group: int, rl_weig
 
 
 @torch.no_grad()
-def collect_predictions(model, loader, device: torch.device):
+def collect_predictions(model, loader, device: torch.device, desc: str):
     model.eval()
     records = []
-    for batch in loader:
+    progress = tqdm(loader, desc=desc, unit="batch", dynamic_ncols=True, leave=False)
+    for batch in progress:
         moved = {k: v.to(device) for k, v in batch.items()}
         context = torch.autocast("cuda", dtype=torch.float16) if device.type == "cuda" else nullcontext()
         with context:
@@ -302,6 +340,8 @@ def main():
     for name in ("train", "valid", "calib", "test"):
         parser.add_argument(f"--{name}")
     parser.add_argument("--out", default="./laya-business")
+    parser.add_argument("--log-file", help="Training log path (default: <out>/training.log)")
+    parser.add_argument("--log-every", type=int, default=500, help="Write a batch summary every N batches")
     parser.add_argument("--epochs", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--grad-accum", type=int, default=8)
@@ -322,8 +362,8 @@ def main():
         return
     if not all((args.train, args.valid, args.calib)):
         parser.error("--train, --valid and --calib are required; --test is strongly recommended")
-    if min(args.epochs, args.batch_size, args.grad_accum) < 1 or args.group < 2:
-        parser.error("epochs/batch-size/grad-accum must be positive; group must be >= 2")
+    if min(args.epochs, args.batch_size, args.grad_accum, args.log_every) < 1 or args.group < 2:
+        parser.error("epochs/batch-size/grad-accum/log-every must be positive; group must be >= 2")
     if min(args.sigma_start, args.sigma_end, args.lr_encoder, args.lr_head) <= 0 or args.rl_weight < 0:
         parser.error("Learning rates and sigmas must be positive; rl-weight must be nonnegative")
     if not 16 <= args.head_max_len < args.max_len:
@@ -331,19 +371,33 @@ def main():
     output = Path(args.out)
     if output.exists() and any(output.iterdir()):
         parser.error(f"Output directory is nonempty; use a new --out: {output}")
+    output.mkdir(parents=True, exist_ok=True)
+    log_file = Path(args.log_file) if args.log_file else output / "training.log"
+    logger = configure_logger(log_file)
     device = torch.device(args.device)
     if device.type not in ("cpu", "cuda"):
         parser.error("This training example supports CPU/CUDA only (MPS inference is a separate SDK capability)")
     if device.type == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA requested but not available")
+    logger.info("Starting training; log_file=%s", log_file.resolve())
+    logger.info("Arguments: %s", json.dumps(vars(args), ensure_ascii=False, default=str))
+    if device.type == "cuda":
+        logger.info("Device: %s (%s)", device, torch.cuda.get_device_name(device))
+    else:
+        logger.info("Device: %s", device)
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     splits = {name: read_cases(path) for name in ("train", "valid", "calib", "test")
               if (path := getattr(args, name))}
     check_split_leakage(splits)
+    for name, cases in splits.items():
+        question_count = sum(len(row["questions"]) for row in cases)
+        logger.info("Loaded %s: %d cases, %d questions", name, len(cases), question_count)
     import laya
     from safetensors.torch import load_file
+    logger.info("Loading Laya checkpoint: %s", args.model)
     agent = laya.load(args.model, device=str(device))
+    logger.info("Checkpoint loaded")
     if not all(hasattr(agent, name) for name in ("model", "tok", "cfg")):
         raise RuntimeError("Laya SDK attributes changed; review this example against your installed revision")
     model, tokenizer, config = agent.model.float(), agent.tok, dict(agent.cfg)
@@ -361,10 +415,11 @@ def main():
         model.head_checkpointing = True
     loaders = {}
     for name, cases in splits.items():
+        logger.info("Encoding %s cases", name)
         items = encode_cases(cases, tokenizer, args.max_len, args.head_max_len)
         loaders[name] = DataLoader(items, batch_size=args.batch_size, shuffle=name == "train",
                                    collate_fn=partial(collate, pad_id=tokenizer.pad_token_id), num_workers=0)
-        print(f"{name}: {len(cases)} cases, {len(items)} question sequences")
+        logger.info("Encoded %s: %d question sequences", name, len(items))
     encoder_parameters, head_parameters = [], []
     for name, parameter in model.named_parameters():
         if parameter.requires_grad:
@@ -377,11 +432,19 @@ def main():
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
     best, history, global_update = math.inf, [], 0
     for epoch in range(args.epochs):
+        epoch_started = time.perf_counter()
         model.train()
         optimizer.zero_grad(set_to_none=True)
         epoch_loss = 0.0
         loader = loaders["train"]
-        for step, batch in enumerate(loader):
+        progress_bar = tqdm(
+            loader,
+            desc=f"Train {epoch + 1}/{args.epochs}",
+            unit="batch",
+            dynamic_ncols=True,
+            leave=True,
+        )
+        for step, batch in enumerate(progress_bar):
             batch = {key: value.to(device) for key, value in batch.items()}
             progress = global_update / max(updates - 1, 1)
             sigma = args.sigma_start + progress * (args.sigma_end - args.sigma_start)
@@ -395,7 +458,8 @@ def main():
             if not torch.isfinite(loss):
                 raise FloatingPointError("Non-finite loss: inspect targets and lower LR/switch off AMP for diagnosis")
             scaler.scale(loss / accumulate).backward()
-            epoch_loss += float(loss.detach())
+            batch_loss = float(loss.detach())
+            epoch_loss += batch_loss
             if (step + 1) % args.grad_accum == 0 or step + 1 == len(loader):
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -406,14 +470,51 @@ def main():
                     scheduler.step()
                 optimizer.zero_grad(set_to_none=True)
                 global_update += 1
-        report = metrics(collect_predictions(model, loaders["valid"], device))
-        history.append({"epoch": epoch + 1, "training_loss": epoch_loss / len(loader), "valid": report})
-        print(json.dumps(history[-1], ensure_ascii=False))
+            average_loss = epoch_loss / (step + 1)
+            lr_encoder = optimizer.param_groups[0]["lr"]
+            lr_head = optimizer.param_groups[1]["lr"]
+            progress_bar.set_postfix(
+                loss=f"{batch_loss:.4f}",
+                avg=f"{average_loss:.4f}",
+                lr=f"{lr_encoder:.2e}/{lr_head:.2e}",
+                sigma=f"{sigma:.3f}",
+                refresh=False,
+            )
+            if (step + 1) % args.log_every == 0 or step + 1 == len(loader):
+                logger.info(
+                    "epoch=%d/%d batch=%d/%d loss=%.6f avg_loss=%.6f "
+                    "lr_encoder=%.3g lr_head=%.3g sigma=%.4f",
+                    epoch + 1,
+                    args.epochs,
+                    step + 1,
+                    len(loader),
+                    batch_loss,
+                    average_loss,
+                    lr_encoder,
+                    lr_head,
+                    sigma,
+                )
+        epoch_loss_avg = epoch_loss / len(loader)
+        logger.info(
+            "Epoch %d training complete in %.1f sec; average_loss=%.6f",
+            epoch + 1,
+            time.perf_counter() - epoch_started,
+            epoch_loss_avg,
+        )
+        report = metrics(
+            collect_predictions(
+                model, loaders["valid"], device, desc=f"Valid {epoch + 1}/{args.epochs}"
+            )
+        )
+        history.append({"epoch": epoch + 1, "training_loss": epoch_loss_avg, "valid": report})
+        logger.info("Epoch %d validation: %s", epoch + 1, json.dumps(report, ensure_ascii=False))
         if report["soft_target_nll"] < best:
             best = report["soft_target_nll"]
+            logger.info("New best validation soft-target NLL=%.6f; saving checkpoint", best)
             save_checkpoint(model, tokenizer, config, output)
+    logger.info("Reloading best checkpoint before calibration")
     model.load_state_dict(load_file(str(output / "model.safetensors"), device=str(device)), strict=True)
-    calibration = collect_predictions(model, loaders["calib"], device)
+    calibration = collect_predictions(model, loaders["calib"], device, desc="Calibrate")
     temperatures = fit_temperatures(calibration)
     config.update(temperature=temperatures, fine_tuned=True, model_name="laya-business-example")
     config.pop("temperature_by_options", None)
@@ -422,14 +523,18 @@ def main():
     save_checkpoint(model, tokenizer, config, output)
     report = {"laya_version": getattr(laya, "__version__", "unknown"), "torch_version": torch.__version__,
               "arguments": vars(args), "history": history, "temperatures": temperatures,
+              "training_log": str(log_file.resolve()),
               "warning": "Act/escalate head was not trained. Soft targets imply teacher agreement, not ground-truth calibration."}
     if "test" in loaders:
-        test_records = collect_predictions(model, loaders["test"], device)
+        test_records = collect_predictions(model, loaders["test"], device, desc="Test")
         report["test_uncalibrated"] = metrics(test_records)
         report["test_calibrated"] = metrics(test_records, temperatures)
     (output / "training_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Saved checkpoint to {output}; temperatures={temperatures}")
-    print("No automatic routing threshold has been selected. Validate it on held-out business outcomes.")
+    logger.info("Calibration temperatures: %s", temperatures)
+    if "test_calibrated" in report:
+        logger.info("Calibrated test metrics: %s", json.dumps(report["test_calibrated"], ensure_ascii=False))
+    logger.info("Saved checkpoint and training report to %s", output.resolve())
+    logger.info("No automatic routing threshold has been selected; validate it on held-out business outcomes.")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f2eb">
+  <title>邻里中枢 — 楼里有事，AI 来搭把手</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #192b27;
+      --muted: #77817b;
+      --line: #e6e8e1;
+      --paper: #f4f2eb;
+      --card: #fffefa;
+      --pine: #203a34;
+      --pine-soft: #e8f0e9;
+      --mint: #b8d8c7;
+      --coral: #cb7054;
+      --coral-soft: #fbede6;
+      --gold: #c89041;
+      --gold-soft: #faf2df;
+      --shadow: 0 16px 40px rgba(30, 48, 41, .055);
+      font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--paper);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    button, textarea { font: inherit; }
+    button { color: inherit; }
+    .app { min-height: 100vh; }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 5;
+      display: flex;
+      width: 238px;
+      flex-direction: column;
+      padding: 27px 17px 19px;
+      background: var(--pine);
+      color: #f4f6ef;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 8px 30px;
+    }
+    .brand-mark {
+      display: grid;
+      width: 37px;
+      height: 37px;
+      place-items: center;
+      border: 1px solid rgba(235, 244, 231, .22);
+      border-radius: 12px;
+      color: var(--mint);
+      font-size: 19px;
+      font-weight: 750;
+      letter-spacing: -2px;
+    }
+    .brand-name { font-size: 15px; font-weight: 680; letter-spacing: .04em; }
+    .brand-caption {
+      margin-top: 3px;
+      color: #9bac9f;
+      font-size: 8px;
+      letter-spacing: .17em;
+    }
+    .side-label {
+      padding: 0 11px 10px;
+      color: #8ea198;
+      font-size: 9px;
+      letter-spacing: .16em;
+    }
+    .nav { display: grid; gap: 5px; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 43px;
+      padding: 0 12px;
+      border-radius: 11px;
+      color: #c2cec7;
+      font-size: 12px;
+      text-decoration: none;
+      transition: background .2s, color .2s;
+    }
+    .nav a:hover { background: rgba(255,255,255,.07); color: white; }
+    .nav a.active { background: rgba(184,216,199,.14); color: #eff9ef; }
+    .nav-icon { width: 17px; color: var(--mint); text-align: center; font-size: 15px; }
+    .nav-count {
+      margin-left: auto;
+      padding: 3px 7px;
+      border-radius: 20px;
+      background: rgba(203,112,84,.2);
+      color: #ffc3aa;
+      font-size: 10px;
+    }
+    .side-spacer { flex: 1; }
+    .building-mini {
+      overflow: hidden;
+      position: relative;
+      height: 112px;
+      margin: 0 4px 16px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(184,216,199,.13), rgba(184,216,199,.03));
+    }
+    .building-mini:before {
+      position: absolute;
+      right: 22px;
+      bottom: -9px;
+      width: 70px;
+      height: 94px;
+      border: 1px solid rgba(216,235,218,.29);
+      border-radius: 7px 7px 0 0;
+      background:
+        repeating-linear-gradient(90deg, transparent 0 16px, rgba(216,235,218,.19) 16px 20px),
+        repeating-linear-gradient(0deg, transparent 0 17px, rgba(216,235,218,.19) 17px 21px),
+        rgba(213,235,217,.07);
+      content: "";
+      transform: skewY(-7deg);
+    }
+    .building-mini:after {
+      position: absolute;
+      right: 91px;
+      bottom: -7px;
+      width: 39px;
+      height: 61px;
+      border: 1px solid rgba(216,235,218,.2);
+      border-radius: 6px 6px 0 0;
+      background: repeating-linear-gradient(0deg, transparent 0 14px, rgba(216,235,218,.16) 14px 18px);
+      content: "";
+      transform: skewY(9deg);
+    }
+    .mini-copy { position: relative; z-index: 1; padding: 13px; }
+    .mini-copy strong { display: block; font-size: 11px; font-weight: 600; }
+    .mini-copy span { display: block; margin-top: 6px; color: #afc1b5; font-size: 9px; }
+    .side-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 7px 0;
+      border-top: 1px solid rgba(255,255,255,.1);
+    }
+    .avatar {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 50%;
+      background: #e8c2a8;
+      color: #624433;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .profile-name { font-size: 10px; font-weight: 600; }
+    .profile-role { margin-top: 3px; color: #9bac9f; font-size: 9px; }
+    .profile-dots { margin-left: auto; color: #9bac9f; }
+
+    .main {
+      width: calc(100% - 238px);
+      max-width: 1680px;
+      margin-left: 238px;
+      padding: 0 42px 36px;
+    }
+    .topbar {
+      display: flex;
+      height: 66px;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(25,43,39,.08);
+    }
+    .crumb { color: var(--muted); font-size: 10px; }
+    .crumb b { color: #a2aaa3; font-weight: 400; padding: 0 7px; }
+    .top-actions { display: flex; align-items: center; gap: 18px; }
+    .community-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 0;
+      background: transparent;
+      color: #45534c;
+      font-size: 10px;
+    }
+    .live-dot, .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #73aa83;
+      box-shadow: 0 0 0 3px rgba(115,170,131,.13);
+    }
+    .bell {
+      position: relative;
+      display: grid;
+      width: 31px;
+      height: 31px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fffefa;
+      color: #627168;
+      font-size: 14px;
+    }
+    .bell:after {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--coral);
+      content: "";
+    }
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 34px 0 23px;
+    }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: #7c887f;
+      font-size: 9px;
+      font-weight: 650;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .eyebrow-line { width: 19px; height: 1px; background: var(--coral); }
+    h1 {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Songti SC", "Noto Serif SC", "STSong", serif;
+      font-size: clamp(26px, 3vw, 35px);
+      font-weight: 600;
+      letter-spacing: -.045em;
+      line-height: 1.2;
+    }
+    .hero-sub {
+      margin: 10px 0 0;
+      color: #78827b;
+      font-size: 11px;
+      line-height: 1.8;
+    }
+    .demo-stamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      padding: 9px 12px;
+      border: 1px solid #e7dbcc;
+      border-radius: 9px;
+      background: #faf7ef;
+      color: #8c7458;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+    .stamp-icon {
+      display: grid;
+      width: 17px;
+      height: 17px;
+      place-items: center;
+      border-radius: 50%;
+      background: #eee2d1;
+      color: #977955;
+      font-size: 9px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(320px, .84fr) minmax(480px, 1.3fr);
+      gap: 17px;
+      align-items: stretch;
+    }
+    .card {
+      border: 1px solid #e8e9e2;
+      border-radius: 17px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    .input-card { padding: 22px; }
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .step-label {
+      display: block;
+      margin-bottom: 7px;
+      color: #9ba49b;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .14em;
+    }
+    .section-title { margin: 0; font-size: 14px; font-weight: 680; letter-spacing: -.02em; }
+    .section-desc { margin: 6px 0 0; color: #8b948d; font-size: 9px; line-height: 1.6; }
+    .small-icon {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: #738078;
+      font-size: 14px;
+    }
+    .scenario-label {
+      margin: 22px 0 9px;
+      color: #77817b;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .scenario-list { display: flex; flex-wrap: wrap; gap: 7px; }
+    .scenario-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid #e8e9e3;
+      border-radius: 8px;
+      background: #fff;
+      color: #67736b;
+      cursor: pointer;
+      font-size: 9px;
+      transition: all .18s ease;
+    }
+    .scenario-btn:hover { border-color: #b9c9bd; color: var(--pine); }
+    .scenario-btn.selected {
+      border-color: #b9cfc1;
+      background: #eff5f0;
+      color: #355348;
+    }
+    .scenario-emoji { font-size: 11px; }
+    .input-label-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 19px 0 8px;
+      color: #758078;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .input-hint { color: #a3aaa3; font-weight: 400; }
+    .message-box {
+      width: 100%;
+      min-height: 135px;
+      resize: vertical;
+      padding: 13px 14px;
+      border: 1px solid #e6e8e2;
+      border-radius: 11px;
+      outline: none;
+      background: #fdfdfa;
+      color: #283931;
+      font-size: 11px;
+      line-height: 1.85;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .message-box:focus {
+      border-color: #a8c2b0;
+      box-shadow: 0 0 0 3px rgba(168,194,176,.16);
+    }
+    .context-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      margin: 12px 0 17px;
+    }
+    .context-label { margin-right: 2px; color: #8e9890; font-size: 9px; }
+    .context-pill {
+      padding: 5px 8px;
+      border: 1px solid #eceee8;
+      border-radius: 6px;
+      background: #fafbf7;
+      color: #69756d;
+      font-size: 8px;
+    }
+    .analyze-btn, .execute-btn, .secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 40px;
+      padding: 0 15px;
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 650;
+      transition: transform .15s, background .2s, box-shadow .2s;
+    }
+    .analyze-btn {
+      width: 100%;
+      background: var(--pine);
+      color: #f8fbf7;
+      box-shadow: 0 5px 12px rgba(32,58,52,.14);
+    }
+    .analyze-btn:hover, .execute-btn:hover { transform: translateY(-1px); }
+    .analyze-btn:hover { background: #2a4c42; }
+    .analyze-btn:disabled { cursor: wait; opacity: .75; transform: none; }
+    .btn-arrow { font-size: 14px; font-weight: 400; }
+    .privacy-note {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 12px;
+      color: #a0a8a0;
+      font-size: 8px;
+    }
+    .privacy-lock { color: #8ea28f; font-size: 10px; }
+
+    .decision-card { overflow: hidden; }
+    .decision-top {
+      padding: 21px 22px 17px;
+      border-bottom: 1px solid #eef0e9;
+    }
+    .decision-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border: 1px solid #dbe9de;
+      border-radius: 7px;
+      background: #f0f7f0;
+      color: #64836b;
+      font-size: 8px;
+      font-weight: 600;
+    }
+    .decision-status .status-dot { width: 6px; height: 6px; }
+    .decision-status.waiting {
+      border-color: #e9e8e1;
+      background: #f7f7f3;
+      color: #858d85;
+    }
+    .decision-status.waiting .status-dot { background: #b9bdb7; box-shadow: none; }
+    .action-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 17px;
+    }
+    .action-kicker { color: #89938b; font-size: 8px; font-weight: 600; letter-spacing: .1em; }
+    .action-title {
+      max-width: 460px;
+      margin: 7px 0 0;
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: -.035em;
+      line-height: 1.5;
+    }
+    .action-icon {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--coral-soft);
+      color: var(--coral);
+      font-size: 18px;
+    }
+    .action-source {
+      margin: 8px 0 0;
+      color: #8b958d;
+      font-size: 9px;
+      line-height: 1.6;
+    }
+    .decision-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .execute-btn {
+      min-height: 34px;
+      background: var(--coral);
+      color: white;
+      font-size: 9px;
+    }
+    .execute-btn:hover { background: #b95f45; }
+    .execute-btn:disabled { cursor: default; background: #78927f; transform: none; }
+    .secondary-btn {
+      min-height: 34px;
+      border: 1px solid #e8eae3;
+      background: white;
+      color: #69756d;
+      font-size: 9px;
+    }
+    .secondary-btn:hover { background: #f8f9f4; }
+    .decision-details {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 0;
+      padding: 17px 22px 18px;
+    }
+    .detail-block + .detail-block { padding-left: 20px; border-left: 1px solid #edf0e9; }
+    .detail-label {
+      margin: 0 0 12px;
+      color: #9aa39b;
+      font-size: 8px;
+      font-weight: 680;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .detail-main { display: flex; align-items: center; gap: 8px; }
+    .detail-main strong { font-size: 12px; font-weight: 650; }
+    .urgency-badge {
+      padding: 4px 7px;
+      border-radius: 6px;
+      background: var(--gold-soft);
+      color: #9c7132;
+      font-size: 8px;
+    }
+    .urgency-track {
+      display: flex;
+      gap: 4px;
+      margin-top: 10px;
+    }
+    .urgency-track span { height: 4px; flex: 1; border-radius: 4px; background: #ebece6; }
+    .urgency-track span.on { background: #dba957; }
+    .detail-sub { margin-top: 7px; color: #9aa39c; font-size: 8px; }
+    .prob-list { display: grid; gap: 9px; }
+    .prob-row { display: grid; grid-template-columns: 74px 1fr 29px; gap: 7px; align-items: center; }
+    .prob-name { overflow: hidden; color: #69756d; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .prob-track { height: 5px; overflow: hidden; border-radius: 8px; background: #eff0eb; }
+    .prob-fill { height: 100%; border-radius: inherit; background: #90b89c; transition: width .45s ease; }
+    .prob-row:first-child .prob-fill { background: var(--coral); }
+    .prob-value { color: #6f7a71; font-size: 8px; text-align: right; }
+    .confidence-note { margin-top: 11px; color: #a0a89f; font-size: 8px; line-height: 1.5; }
+    .demo-disclaimer { padding: 9px 22px; border-top: 1px solid #eef0e9; background: #fbfbf7; color: #9aa39a; font-size: 8px; }
+
+    .lower-grid {
+      display: grid;
+      grid-template-columns: minmax(400px, 1.15fr) minmax(310px, .85fr);
+      gap: 17px;
+      margin-top: 17px;
+    }
+    .map-card, .timeline-card { padding: 18px 20px; }
+    .lower-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .lower-title { margin: 0; font-size: 11px; font-weight: 680; }
+    .lower-sub { margin: 5px 0 0; color: #929b93; font-size: 8px; }
+    .map-key { display: flex; gap: 11px; color: #89938b; font-size: 8px; }
+    .key-item { display: flex; align-items: center; gap: 5px; }
+    .key-dot { width: 6px; height: 6px; border-radius: 50%; background: #d5795c; }
+    .key-dot.green { background: #75a985; }
+    .map-body {
+      position: relative;
+      display: grid;
+      min-height: 156px;
+      grid-template-columns: 1fr 110px 1fr;
+      align-items: center;
+      gap: 15px;
+      margin-top: 12px;
+      padding: 14px 12px;
+      overflow: hidden;
+      border: 1px solid #edf0e8;
+      border-radius: 12px;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(206,224,202,.47), transparent 61%),
+        #f8f9f3;
+    }
+    .map-body:before, .map-body:after {
+      position: absolute;
+      z-index: 0;
+      top: 50%;
+      left: -2%;
+      width: 104%;
+      height: 1px;
+      background: #e1e8dc;
+      content: "";
+    }
+    .map-body:after { top: auto; bottom: 28%; transform: rotate(-8deg); }
+    .building {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      min-height: 92px;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 10px;
+      border: 1px solid #d8e3d7;
+      border-radius: 10px;
+      background: #eef3e9;
+      box-shadow: 0 5px 12px rgba(53,83,65,.06);
+    }
+    .building.affected { border-color: #e7b8a6; background: #fbf0e8; }
+    .building-title { display: flex; justify-content: space-between; color: #52645a; font-size: 8px; font-weight: 650; }
+    .building.affected .building-title { color: #895d4b; }
+    .window-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 68px; margin: 7px auto; }
+    .window-grid span { height: 7px; border-radius: 2px; background: #bed1bc; }
+    .affected .window-grid span:nth-child(2), .affected .window-grid span:nth-child(6) { background: #d88a6d; }
+    .building-foot { color: #8a988b; font-size: 7px; }
+    .map-center {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      color: #7c8e7e;
+      text-align: center;
+    }
+    .route-line {
+      position: absolute;
+      z-index: -1;
+      top: 50%;
+      left: -32px;
+      width: 174px;
+      border-top: 1px dashed #cb8d70;
+      transform: rotate(-8deg);
+    }
+    .pin {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      place-items: center;
+      border: 4px solid #fff;
+      border-radius: 50% 50% 50% 0;
+      background: var(--coral);
+      box-shadow: 0 4px 12px rgba(170,88,61,.25);
+      color: white;
+      font-size: 10px;
+      transform: rotate(-45deg);
+    }
+    .pin span { transform: rotate(45deg); }
+    .map-center small { padding: 4px 7px; border-radius: 6px; background: #fffefa; color: #776f63; font-size: 7px; box-shadow: 0 2px 8px rgba(24,43,36,.08); }
+    .map-caption { color: #9aa39b; font-size: 8px; }
+
+    .timeline-list { display: grid; gap: 0; margin-top: 15px; }
+    .timeline-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 9px;
+      min-height: 47px;
+      align-items: start;
+    }
+    .timeline-item:not(:last-child):before {
+      position: absolute;
+      top: 23px;
+      left: 13px;
+      bottom: -1px;
+      width: 1px;
+      background: #e6e9e2;
+      content: "";
+    }
+    .timeline-icon {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      width: 27px;
+      height: 27px;
+      place-items: center;
+      border: 1px solid #e5eee4;
+      border-radius: 9px;
+      background: #f3f7f0;
+      color: #6a9474;
+      font-size: 10px;
+    }
+    .timeline-icon.warm { border-color: #f1e2d9; background: #fbf1ea; color: #bf7458; }
+    .timeline-text { padding-top: 2px; color: #536158; font-size: 8px; line-height: 1.6; }
+    .timeline-text strong { display: block; color: #34453b; font-size: 9px; font-weight: 620; }
+    .timeline-time { padding-top: 3px; color: #a0a8a0; font-size: 7px; white-space: nowrap; }
+    .timeline-empty { padding: 9px 0; color: #a0a8a0; font-size: 9px; }
+    .toast {
+      position: fixed;
+      right: 25px;
+      bottom: 23px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      max-width: calc(100vw - 32px);
+      padding: 12px 15px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 11px;
+      background: #233d34;
+      box-shadow: 0 10px 28px rgba(16,39,30,.2);
+      color: #f2f8f1;
+      font-size: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity .22s, transform .22s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast-check { color: #a9d5b6; font-size: 13px; }
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255,255,255,.32);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .footnote {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 17px 2px 0;
+      color: #a0a8a0;
+      font-size: 8px;
+    }
+    .footnote strong { color: #758078; font-weight: 600; }
+
+    @media (max-width: 1120px) {
+      .sidebar { width: 205px; }
+      .main { width: calc(100% - 205px); margin-left: 205px; padding-right: 25px; padding-left: 25px; }
+      .workspace { grid-template-columns: minmax(290px, .9fr) minmax(400px, 1.1fr); }
+      .lower-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 820px) {
+      .sidebar { position: static; width: 100%; height: auto; padding: 12px 16px; flex-direction: row; align-items: center; }
+      .brand { padding: 0; }
+      .brand-mark { width: 33px; height: 33px; }
+      .brand-caption, .side-label, .side-spacer, .building-mini, .side-profile { display: none; }
+      .nav { display: flex; gap: 2px; margin-left: auto; }
+      .nav a { min-height: 36px; padding: 0 10px; font-size: 9px; }
+      .nav-icon { display: none; }
+      .nav-count { display: none; }
+      .main { width: 100%; margin: 0; padding: 0 20px 28px; }
+      .topbar { height: 53px; }
+      .hero { padding-top: 25px; }
+      .workspace { grid-template-columns: 1fr; }
+      .input-card { order: 1; }
+      .decision-card { order: 2; }
+    }
+    @media (max-width: 560px) {
+      .sidebar { gap: 10px; }
+      .brand-name { font-size: 13px; }
+      .nav a { padding: 0 8px; }
+      .nav a .nav-label { display: none; }
+      .nav-icon { display: inline; }
+      .main { padding-right: 14px; padding-left: 14px; }
+      .community-select { font-size: 9px; }
+      .top-actions { gap: 10px; }
+      .hero { display: block; }
+      .demo-stamp { margin-top: 15px; }
+      h1 { font-size: 28px; }
+      .input-card { padding: 17px; }
+      .decision-top { padding: 17px; }
+      .decision-details { padding: 15px 17px; }
+      .detail-block + .detail-block { padding-left: 12px; }
+      .prob-row { grid-template-columns: 68px 1fr 27px; gap: 5px; }
+      .lower-grid { grid-template-columns: minmax(0, 1fr); }
+      .map-card, .timeline-card { padding: 16px; }
+      .map-body { grid-template-columns: 1fr 72px 1fr; gap: 6px; padding: 10px 7px; }
+      .building { padding: 8px 6px; }
+      .building-title { font-size: 7px; }
+      .window-grid { width: 58px; }
+      .footnote { display: block; line-height: 1.8; }
+      .footnote span { display: block; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *:before, *:after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">邻</div>
+        <div>
+          <div class="brand-name">邻里中枢</div>
+          <div class="brand-caption">NEIGHBORHOOD OS</div>
+        </div>
+      </div>
+      <div class="side-label">工作台</div>
+      <nav class="nav">
+        <a class="active" href="#workbench"><span class="nav-icon">◉</span><span class="nav-label">事件中枢</span><span class="nav-count" id="navCount">1</span></a>
+        <a href="#village"><span class="nav-icon">⌂</span><span class="nav-label">小区现场</span></a>
+        <a href="#timeline"><span class="nav-icon">↺</span><span class="nav-label">处置记录</span></a>
+      </nav>
+      <div class="side-spacer"></div>
+      <div class="building-mini" aria-label="小区楼宇示意">
+        <div class="mini-copy"><strong>海棠里 · 3 号楼</strong><span>邻里互助，让小事有回应</span></div>
+      </div>
+      <div class="side-profile">
+        <div class="avatar">林</div>
+        <div><div class="profile-name">林管家</div><div class="profile-role">社区协作员</div></div>
+        <span class="profile-dots">···</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb">海棠里小区 <b>/</b> 事件中枢</div>
+        <div class="top-actions">
+          <div class="community-select"><span class="live-dot"></span>演示空间 · 本地预览</div>
+          <button class="bell" type="button" aria-label="通知">♧</button>
+        </div>
+      </header>
+
+      <section class="hero" id="workbench">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-line"></span>NEIGHBORHOOD DECISION DESK</div>
+          <h1>楼里有事，AI 来搭把手。</h1>
+          <p class="hero-sub">把群聊里模糊的一句话，变成清晰、可确认的下一步。</p>
+        </div>
+        <div class="demo-stamp"><span class="stamp-icon">✳</span>交互样机 <span>·</span> 决策数值为演示数据</div>
+      </section>
+
+      <section class="workspace" aria-label="事件决策工作台">
+        <article class="card input-card">
+          <div class="section-head">
+            <div>
+              <span class="step-label">01 / 一句话描述</span>
+              <h2 class="section-title">发生了什么？</h2>
+              <p class="section-desc">选一个常见场景，或直接输入邻里消息。</p>
+            </div>
+            <div class="small-icon" aria-hidden="true">✎</div>
+          </div>
+
+          <div class="scenario-label">试试这些场景</div>
+          <div class="scenario-list" role="group" aria-label="选择演示场景">
+            <button class="scenario-btn selected" type="button" data-case="elevator"><span class="scenario-emoji">🛗</span>电梯故障</button>
+            <button class="scenario-btn" type="button" data-case="parcel"><span class="scenario-emoji">📦</span>快递送错</button>
+            <button class="scenario-btn" type="button" data-case="noise"><span class="scenario-emoji">🌙</span>深夜噪音</button>
+          </div>
+
+          <div class="input-label-row"><label for="message">邻里群消息</label><span class="input-hint">支持口语表达</span></div>
+          <textarea class="message-box" id="message" maxlength="300" aria-label="邻里群消息">2 单元电梯停了，有人推着婴儿车被困在一楼，物业电话一直占线。</textarea>
+          <div class="context-row">
+            <span class="context-label">现场信息</span>
+            <span class="context-pill">海棠里 · 2 号楼</span>
+            <span class="context-pill">工作日 · 白天</span>
+          </div>
+          <button class="analyze-btn" id="analyzeBtn" type="button"><span id="analyzeText">分析这件事</span><span class="btn-arrow">→</span></button>
+          <div class="privacy-note"><span class="privacy-lock">⌑</span>仅演示模拟处置，不会联系真实物业</div>
+        </article>
+
+        <article class="card decision-card" aria-live="polite">
+          <div class="decision-top">
+            <div class="section-head">
+              <div>
+                <span class="step-label">02 / 结构化判断</span>
+                <h2 class="section-title">AI 处置建议</h2>
+              </div>
+              <div class="decision-status" id="decisionStatus"><span class="status-dot"></span><span id="statusText">示例结果</span></div>
+            </div>
+            <div class="action-heading">
+              <div>
+                <div class="action-kicker">建议的下一步</div>
+                <h3 class="action-title" id="actionTitle">联系物业值班室，创建电梯报修单</h3>
+                <p class="action-source" id="actionSource">识别到「电梯停运」和「有人受困」，优先安排现场协助。</p>
+              </div>
+              <div class="action-icon" id="actionIcon" aria-hidden="true">↗</div>
+            </div>
+            <div class="decision-controls">
+              <button class="execute-btn" id="executeBtn" type="button"><span>✓</span><span id="executeText">执行模拟处置</span></button>
+              <button class="secondary-btn" id="resetBtn" type="button">重置</button>
+            </div>
+          </div>
+
+          <div class="decision-details">
+            <div class="detail-block">
+              <p class="detail-label">事件判断</p>
+              <div class="detail-main"><strong id="eventType">设备故障</strong><span class="urgency-badge" id="urgencyBadge">需要尽快处理</span></div>
+              <div class="urgency-track" aria-label="紧急程度"><span class="on"></span><span class="on"></span><span class="on"></span></div>
+              <div class="detail-sub" id="urgencyText">紧急程度 · 3 / 3</div>
+            </div>
+            <div class="detail-block">
+              <p class="detail-label">建议动作分布</p>
+              <div class="prob-list" id="probList">
+                <div class="prob-row"><span class="prob-name">创建维修工单</span><span class="prob-track"><span class="prob-fill" style="width:76%"></span></span><span class="prob-value">76%</span></div>
+                <div class="prob-row"><span class="prob-name">通知楼栋管家</span><span class="prob-track"><span class="prob-fill" style="width:18%"></span></span><span class="prob-value">18%</span></div>
+                <div class="prob-row"><span class="prob-name">询问更多信息</span><span class="prob-track"><span class="prob-fill" style="width:6%"></span></span><span class="prob-value">6%</span></div>
+              </div>
+              <div class="confidence-note">示例分布仅用于展示界面；接入 Laya 后替换为模型实测结果。</div>
+            </div>
+          </div>
+          <div class="demo-disclaimer">模型负责选择结构化动作；执行前由业务逻辑检查动作是否允许。</div>
+        </article>
+      </section>
+
+      <section class="lower-grid">
+        <article class="card map-card" id="village">
+          <div class="lower-head">
+            <div><h2 class="lower-title">小区现场</h2><p class="lower-sub">事件位置与建议联络对象</p></div>
+            <div class="map-key"><span class="key-item"><i class="key-dot"></i>事件位置</span><span class="key-item"><i class="key-dot green"></i>可协助</span></div>
+          </div>
+          <div class="map-body">
+            <div class="building">
+              <div class="building-title"><span>1 号楼</span><span>●</span></div>
+              <div class="window-grid" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+              <div class="building-foot">楼栋管家 · 王阿姨</div>
+            </div>
+            <div class="map-center">
+              <div class="route-line"></div>
+              <div class="pin"><span>!</span></div>
+              <small id="mapLabel">2 号楼 · 电梯厅</small>
+            </div>
+            <div class="building affected">
+              <div class="building-title"><span>2 号楼</span><span>●</span></div>
+              <div class="window-grid" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+              <div class="building-foot">物业值班室 · 1F</div>
+            </div>
+          </div>
+          <div class="map-caption">示意地图 · 位置根据演示场景更新</div>
+        </article>
+
+        <article class="card timeline-card" id="timeline">
+          <div class="lower-head">
+            <div><h2 class="lower-title">处置记录</h2><p class="lower-sub">这次演示的事件进展</p></div>
+            <span class="context-pill" id="recordCount">2 条记录</span>
+          </div>
+          <div class="timeline-list" id="timelineList">
+            <div class="timeline-item">
+              <div class="timeline-icon warm">↗</div>
+              <div class="timeline-text"><strong>收到邻里消息</strong><span>2 单元电梯停止运行</span></div>
+              <time class="timeline-time">刚刚</time>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-icon">⌕</div>
+              <div class="timeline-text"><strong>完成结构化判断</strong><span>设备故障 · 紧急程度 3 / 3</span></div>
+              <time class="timeline-time">刚刚</time>
+            </div>
+            <div class="timeline-empty" id="timelineEmpty" hidden>处置记录会显示在这里。</div>
+          </div>
+        </article>
+      </section>
+
+      <footer class="footnote">
+        <span><strong>邻里中枢</strong> · 一个中文决策模型的生活场景 Demo</span>
+        <span>界面预览 · 模拟数据 · 无真实外部操作</span>
+      </footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-check">✓</span><span id="toastText">模拟处置完成</span></div>
+
+  <script>
+    (function () {
+      const cases = {
+        elevator: {
+          text: '2 单元电梯停了，有人推着婴儿车被困在一楼，物业电话一直占线。',
+          type: '设备故障',
+          urgency: '需要尽快处理',
+          level: 3,
+          action: '联系物业值班室，创建电梯报修单',
+          source: '识别到「电梯停运」和「有人受困」，优先安排现场协助。',
+          icon: '↗',
+          map: '2 号楼 · 电梯厅',
+          options: [['创建维修工单', 76], ['通知楼栋管家', 18], ['询问更多信息', 6]],
+          timeline: '设备故障 · 紧急程度 3 / 3',
+          receipt: '已模拟创建电梯维修单 #HT-2048，并通知物业值班室。'
+        },
+        parcel: {
+          text: '有人把 2 号楼 1602 的快递放到我家门口了，收件人今天急用，能帮忙联系一下吗？',
+          type: '快递协助',
+          urgency: '常规处理',
+          level: 1,
+          action: '通知楼栋管家，协助联系收件人',
+          source: '识别到错放快递和明确楼层，可先由楼栋管家协助确认。',
+          icon: '⌂',
+          map: '2 号楼 · 16F',
+          options: [['通知楼栋管家', 68], ['联系快递员', 24], ['询问快递单号', 8]],
+          timeline: '快递协助 · 常规处理',
+          receipt: '已模拟通知 2 号楼管家，等待联系收件人。'
+        },
+        noise: {
+          text: '已经凌晨一点了，楼上又在拖椅子，家里孩子刚睡着。我不想直接吵架。',
+          type: '邻里沟通',
+          urgency: '建议尽快协调',
+          level: 2,
+          action: '请楼栋管家协助沟通，避免直接冲突',
+          source: '识别到深夜噪音和希望缓和处理，优先选择中立协调。',
+          icon: '☾',
+          map: '2 号楼 · 17F',
+          options: [['请管家协助沟通', 71], ['发送礼貌提醒', 20], ['转人工跟进', 9]],
+          timeline: '邻里沟通 · 建议尽快协调',
+          receipt: '已模拟生成一条礼貌提醒，并通知楼栋管家跟进。'
+        }
+      };
+
+      let selectedCase = 'elevator';
+      let executed = false;
+      let recordTotal = 1;
+      const message = document.getElementById('message');
+      const analyzeBtn = document.getElementById('analyzeBtn');
+      const executeBtn = document.getElementById('executeBtn');
+      const toast = document.getElementById('toast');
+      let toastTimer;
+
+      function getCaseFromText(text) {
+        if (/快递|包裹|送错|收件人/.test(text)) return 'parcel';
+        if (/凌晨|噪音|拖椅子|吵架|楼上/.test(text)) return 'noise';
+        if (/电梯|停运|停了|婴儿车|被困/.test(text)) return 'elevator';
+        return null;
+      }
+
+      function renderProbabilities(options) {
+        const container = document.getElementById('probList');
+        container.replaceChildren();
+        options.forEach(function (item) {
+          const row = document.createElement('div');
+          row.className = 'prob-row';
+          const name = document.createElement('span');
+          name.className = 'prob-name';
+          name.textContent = item[0];
+          const track = document.createElement('span');
+          track.className = 'prob-track';
+          const fill = document.createElement('span');
+          fill.className = 'prob-fill';
+          fill.style.width = item[1] + '%';
+          track.appendChild(fill);
+          const value = document.createElement('span');
+          value.className = 'prob-value';
+          value.textContent = item[1] + '%';
+          row.append(name, track, value);
+          container.appendChild(row);
+        });
+      }
+
+      function setUrgency(level, label) {
+        const track = document.querySelector('.urgency-track');
+        track.replaceChildren();
+        for (let i = 0; i < 3; i++) {
+          const segment = document.createElement('span');
+          if (i < level) segment.className = 'on';
+          track.appendChild(segment);
+        }
+        document.getElementById('urgencyBadge').textContent = label;
+        document.getElementById('urgencyText').textContent = '紧急程度 · ' + level + ' / 3';
+      }
+
+      function clearExecutedState() {
+        executed = false;
+        executeBtn.disabled = false;
+        document.getElementById('executeText').textContent = '执行模拟处置';
+        document.getElementById('decisionStatus').classList.remove('waiting');
+        document.getElementById('statusText').textContent = '模拟结果';
+      }
+
+      function showCase(key, status) {
+        const item = cases[key];
+        selectedCase = key;
+        document.querySelectorAll('.scenario-btn').forEach(function (button) {
+          button.classList.toggle('selected', button.dataset.case === key);
+        });
+        document.getElementById('actionTitle').textContent = item.action;
+        document.getElementById('actionSource').textContent = item.source;
+        document.getElementById('actionIcon').textContent = item.icon;
+        document.getElementById('eventType').textContent = item.type;
+        document.getElementById('mapLabel').textContent = item.map;
+        setUrgency(item.level, item.urgency);
+        renderProbabilities(item.options);
+        document.getElementById('statusText').textContent = status || '模拟结果';
+        document.getElementById('decisionStatus').classList.remove('waiting');
+        clearExecutedState();
+        document.getElementById('statusText').textContent = status || '模拟结果';
+        document.getElementById('timelineList').innerHTML =
+          '<div class="timeline-item"><div class="timeline-icon warm">↗</div><div class="timeline-text"><strong>收到邻里消息</strong><span>' +
+          escapeHtml(item.text.slice(0, 22)) + (item.text.length > 22 ? '…' : '') +
+          '</span></div><time class="timeline-time">刚刚</time></div>' +
+          '<div class="timeline-item"><div class="timeline-icon">⌕</div><div class="timeline-text"><strong>完成结构化判断</strong><span>' +
+          escapeHtml(item.timeline) + '</span></div><time class="timeline-time">刚刚</time></div>';
+        recordTotal = 2;
+        document.getElementById('recordCount').textContent = recordTotal + ' 条记录';
+        document.getElementById('navCount').textContent = '1';
+      }
+
+      function escapeHtml(value) {
+        return value.replace(/[&<>"']/g, function (char) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+        });
+      }
+
+      function notify(text) {
+        document.getElementById('toastText').textContent = text;
+        toast.classList.add('show');
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(function () { toast.classList.remove('show'); }, 3200);
+      }
+
+      document.querySelectorAll('.scenario-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const key = button.dataset.case;
+          message.value = cases[key].text;
+          showCase(key, '示例结果');
+        });
+      });
+
+      message.addEventListener('input', function () {
+        document.querySelectorAll('.scenario-btn').forEach(function (button) {
+          button.classList.remove('selected');
+        });
+        clearExecutedState();
+        document.getElementById('decisionStatus').classList.add('waiting');
+        document.getElementById('statusText').textContent = '待分析';
+      });
+
+      analyzeBtn.addEventListener('click', function () {
+        const text = message.value.trim();
+        if (!text) {
+          message.focus();
+          notify('先写一句发生了什么吧。');
+          return;
+        }
+        const key = getCaseFromText(text);
+        analyzeBtn.disabled = true;
+        document.getElementById('analyzeText').innerHTML = '<span class="spinner" aria-hidden="true"></span> 正在生成模拟决策';
+        window.setTimeout(function () {
+          analyzeBtn.disabled = false;
+          document.getElementById('analyzeText').textContent = '分析这件事';
+          if (key) {
+            cases[key].text = text;
+            showCase(key, '模拟分析完成');
+          } else {
+            selectedCase = null;
+            clearExecutedState();
+            document.getElementById('decisionStatus').classList.add('waiting');
+            document.getElementById('statusText').textContent = '建议补充信息';
+            document.getElementById('eventType').textContent = '待确认';
+            document.getElementById('urgencyBadge').textContent = '暂不判断';
+            document.getElementById('urgencyText').textContent = '当前演示案例未覆盖这类表达';
+            document.querySelector('.urgency-track').replaceChildren();
+            document.getElementById('actionTitle').textContent = '请补充地点或具体情况，再决定由谁处理';
+            document.getElementById('actionSource').textContent = '这条消息暂时无法匹配预设场景；演示中先转人工确认。';
+            document.getElementById('actionIcon').textContent = '?';
+            document.getElementById('mapLabel').textContent = '等待确认位置';
+            renderProbabilities([['补充信息', 62], ['转人工确认', 38]]);
+            document.getElementById('timelineList').innerHTML =
+              '<div class="timeline-item"><div class="timeline-icon warm">↗</div><div class="timeline-text"><strong>收到自定义消息</strong><span>' +
+              escapeHtml(text.slice(0, 24)) + (text.length > 24 ? '…' : '') +
+              '</span></div><time class="timeline-time">刚刚</time></div>' +
+              '<div class="timeline-item"><div class="timeline-icon">?</div><div class="timeline-text"><strong>需要补充信息</strong><span>不会自动执行未确认的动作</span></div><time class="timeline-time">刚刚</time></div>';
+            recordTotal = 2;
+            document.getElementById('recordCount').textContent = recordTotal + ' 条记录';
+            executeBtn.disabled = true;
+          }
+          document.getElementById('navCount').textContent = '1';
+        }, 420);
+      });
+
+      executeBtn.addEventListener('click', function () {
+        if (executed || !selectedCase) return;
+        executed = true;
+        executeBtn.disabled = true;
+        document.getElementById('executeText').textContent = '已完成模拟处置';
+        document.getElementById('decisionStatus').classList.remove('waiting');
+        document.getElementById('statusText').textContent = '已执行模拟动作';
+        const item = cases[selectedCase];
+        const timeline = document.getElementById('timelineList');
+        const row = document.createElement('div');
+        row.className = 'timeline-item';
+        row.innerHTML = '<div class="timeline-icon">✓</div><div class="timeline-text"><strong>模拟处置已完成</strong><span>' +
+          escapeHtml(item.receipt) + '</span></div><time class="timeline-time">刚刚</time>';
+        timeline.appendChild(row);
+        recordTotal += 1;
+        document.getElementById('recordCount').textContent = recordTotal + ' 条记录';
+        document.getElementById('navCount').textContent = '0';
+        notify(item.receipt);
+      });
+
+      document.getElementById('resetBtn').addEventListener('click', function () {
+        message.value = cases.elevator.text;
+        showCase('elevator', '示例结果');
+        notify('已恢复到电梯故障示例。');
+      });
+
+      document.querySelectorAll('.nav a').forEach(function (link) {
+        link.addEventListener('click', function () {
+          document.querySelectorAll('.nav a').forEach(function (item) { item.classList.remove('active'); });
+          link.classList.add('active');
+        });
+      });
+    }());
+  </script>
+</body>
+</html>
