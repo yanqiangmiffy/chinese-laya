@@ -70,6 +70,23 @@ def configure_logger(log_file: Path) -> logging.Logger:
     return logger
 
 
+def create_versioned_output_dir(base: Path) -> Path:
+    """Create a fresh run directory, adding -v2, -v3, ... when needed."""
+    base = base.expanduser()
+    if not base.name:
+        raise ValueError("--out must name a run directory")
+    base.parent.mkdir(parents=True, exist_ok=True)
+
+    version = 1
+    while True:
+        candidate = base if version == 1 else base.with_name(f"{base.name}-v{version}")
+        try:
+            candidate.mkdir(exist_ok=False)
+            return candidate
+        except FileExistsError:
+            version = 2 if version == 1 else version + 1
+
+
 def json_field(value: Any) -> Any:
     """Accept both nested JSON objects and dataset columns containing JSON text."""
     return json.loads(value) if isinstance(value, str) else value
@@ -368,10 +385,11 @@ def main():
         parser.error("Learning rates and sigmas must be positive; rl-weight must be nonnegative")
     if not 16 <= args.head_max_len < args.max_len:
         parser.error("Require 16 <= head-max-len < max-len")
-    output = Path(args.out)
-    if output.exists() and any(output.iterdir()):
-        parser.error(f"Output directory is nonempty; use a new --out: {output}")
-    output.mkdir(parents=True, exist_ok=True)
+    try:
+        output = create_versioned_output_dir(Path(args.out))
+    except ValueError as exc:
+        parser.error(str(exc))
+    args.out = str(output)
     log_file = Path(args.log_file) if args.log_file else output / "training.log"
     logger = configure_logger(log_file)
     device = torch.device(args.device)
@@ -379,7 +397,7 @@ def main():
         parser.error("This training example supports CPU/CUDA only (MPS inference is a separate SDK capability)")
     if device.type == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA requested but not available")
-    logger.info("Starting training; log_file=%s", log_file.resolve())
+    logger.info("Starting training; output_dir=%s; log_file=%s", output.resolve(), log_file.resolve())
     logger.info("Arguments: %s", json.dumps(vars(args), ensure_ascii=False, default=str))
     if device.type == "cuda":
         logger.info("Device: %s (%s)", device, torch.cuda.get_device_name(device))

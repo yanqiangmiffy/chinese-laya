@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1240" viewBox="0 0 1800 1240" role="img" aria-labelledby="title desc">
+  <title id="title">RLCD-style calibrated decision learning pipeline</title>
+  <desc id="desc">A paper-style diagram of the independent Laya fine-tuning example: typed inputs, decision model, supervised and REINFORCE objectives, model updates, post-hoc temperature calibration, and evaluation.</desc>
+  <defs>
+    <marker id="arrow-navy" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3976b8"/></marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d17b28"/></marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7854a5"/></marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#27836b"/></marker>
+    <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ad8427"/></marker>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#172b4d" flood-opacity="0.08"/></filter>
+    <style>
+      text { font-family: "Microsoft YaHei", Arial, sans-serif; fill: #182b45; }
+      .title { font-size: 31px; font-weight: 700; letter-spacing: .1px; }
+      .subtitle { font-size: 15px; fill: #61738a; }
+      .lane { font-size: 15px; font-weight: 700; fill: #334c6b; letter-spacing: .6px; }
+      .card { fill: #fff; stroke: #cbd5e1; stroke-width: 1.5; rx: 15; filter: url(#shadow); }
+      .card-blue { fill: #f3f8fe; stroke: #8db3da; }
+      .card-teal { fill: #f0faf7; stroke: #8ec8b6; }
+      .card-orange { fill: #fff8ef; stroke: #e5ba87; }
+      .card-purple { fill: #f8f5fc; stroke: #b6a0d3; }
+      .card-green { fill: #f1f9f6; stroke: #91c3b3; }
+      .card-gold { fill: #fffaf0; stroke: #d8c184; }
+      .head { font-size: 17px; font-weight: 700; }
+      .body { font-size: 14px; fill: #40536b; }
+      .small { font-size: 12px; fill: #61738a; }
+      .eq { font-size: 15px; font-weight: 600; fill: #243b58; }
+      .tiny { font-size: 11px; fill: #61738a; }
+      .arrow { fill: none; stroke: #334155; stroke-width: 2.2; marker-end: url(#arrow-navy); }
+      .arrow-blue { fill: none; stroke: #3976b8; stroke-width: 2.2; marker-end: url(#arrow-blue); }
+      .arrow-orange { fill: none; stroke: #d17b28; stroke-width: 2.2; marker-end: url(#arrow-orange); }
+      .arrow-purple { fill: none; stroke: #7854a5; stroke-width: 2.2; marker-end: url(#arrow-purple); }
+      .arrow-green { fill: none; stroke: #27836b; stroke-width: 2.2; marker-end: url(#arrow-green); }
+      .target-arrow { fill: none; stroke: #ad8427; stroke-width: 1.9; stroke-dasharray: 6 5; marker-end: url(#arrow-gold); }
+      .rule { stroke: #dbe3ec; stroke-width: 1.2; }
+      .badge { fill: #e8eef6; stroke: #ced9e5; stroke-width: 1; }
+      .badge-text { font-size: 12px; font-weight: 700; fill: #49617e; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="1240" fill="#ffffff"/>
+  <text id="figure-heading" x="900" y="52" text-anchor="middle" class="title">面向校准决策的强化学习（RLCD）</text>
+  <text x="900" y="82" text-anchor="middle" class="subtitle">laya_finetune_minimal.py：软目标监督 + REINFORCE 策略优化 + 后验温度校准</text>
+
+  <text x="60" y="133" class="lane">A  输入与决策模型</text>
+  <line x1="60" y1="147" x2="1740" y2="147" class="rule"/>
+
+  <!-- input -->
+  <rect x="70" y="183" width="320" height="220" class="card card-blue"/>
+  <rect x="91" y="203" width="54" height="25" rx="12" class="badge"/>
+  <text x="118" y="220" text-anchor="middle" class="badge-text">DATA</text>
+  <text x="92" y="259" class="head">类型化决策样本</text>
+  <text x="92" y="294" class="body">状态 / 上下文  x</text>
+  <text x="92" y="323" class="body">类型化问题 + 候选项</text>
+  <text x="92" y="359" class="body">目标概率分布  y*</text>
+  <text x="92" y="384" class="small">choice · score · noul</text>
+
+  <!-- model -->
+  <rect x="475" y="183" width="350" height="220" class="card card-teal"/>
+  <rect x="496" y="203" width="93" height="25" rx="12" class="badge"/>
+  <text x="542" y="220" text-anchor="middle" class="badge-text">POLICY πθ</text>
+  <text x="497" y="259" class="head">Laya 决策模型</text>
+  <rect x="500" y="282" width="300" height="42" rx="9" fill="#ffffff" stroke="#c3ddd4"/>
+  <text x="650" y="309" text-anchor="middle" class="body">编码器：状态与问题</text>
+  <rect x="500" y="337" width="300" height="42" rx="9" fill="#ffffff" stroke="#c3ddd4"/>
+  <text x="650" y="364" text-anchor="middle" class="body">决策头：候选项 logits</text>
+
+  <!-- logits -->
+  <rect x="930" y="218" width="245" height="150" class="card"/>
+  <text x="1052" y="257" text-anchor="middle" class="head">Logits  zθ</text>
+  <text x="1052" y="291" text-anchor="middle" class="body">未归一化的候选分数</text>
+  <text x="1052" y="328" text-anchor="middle" class="eq">p = softmax(zθ)</text>
+  <path d="M390 293 L475 293" class="arrow-blue"/>
+  <path d="M825 293 L930 293" class="arrow-blue"/>
+
+  <text x="60" y="463" class="lane">B  训练目标：监督学习 + 强化学习</text>
+  <line x1="60" y1="477" x2="1740" y2="477" class="rule"/>
+
+  <!-- CE -->
+  <rect x="70" y="548" width="300" height="162" class="card card-blue"/>
+  <text x="92" y="582" class="head">软目标交叉熵</text>
+  <text x="220" y="623" text-anchor="middle" class="eq">L_CE = −Σ_i y*_i log p_i</text>
+  <text x="92" y="662" class="small">使预测分布贴近目标分布 y*</text>
+  <path d="M982 368 L982 500 L220 500 L220 548" class="arrow-blue"/>
+
+  <!-- perturbation sampling -->
+  <rect x="415" y="548" width="230" height="162" class="card card-orange"/>
+  <text x="530" y="582" text-anchor="middle" class="head">策略扰动采样</text>
+  <text x="530" y="620" text-anchor="middle" class="eq">z^(k) = zθ + σε^(k)</text>
+  <text x="530" y="651" text-anchor="middle" class="body">采样 K 个候选策略</text>
+  <text x="530" y="680" text-anchor="middle" class="small">logits 空间中的零和噪声</text>
+  <path d="M1052 368 L1052 515 L530 515 L530 548" class="arrow-orange"/>
+
+  <!-- softmax samples -->
+  <rect x="675" y="548" width="190" height="162" class="card card-orange"/>
+  <text x="770" y="582" text-anchor="middle" class="head">样本概率分布</text>
+  <text x="770" y="621" text-anchor="middle" class="eq">p^(k) = softmax(z^(k))</text>
+  <text x="770" y="658" text-anchor="middle" class="body">每个候选对应一个分布</text>
+  <path d="M645 629 L675 629" class="arrow-orange"/>
+
+  <!-- score -->
+  <rect x="895" y="548" width="300" height="162" class="card card-purple"/>
+  <text x="1045" y="581" text-anchor="middle" class="head">分布奖励  r(p, y*)</text>
+  <text x="1045" y="618" text-anchor="middle" class="body">Log score + 0.75 × Spherical</text>
+  <text x="1045" y="647" text-anchor="middle" class="body">− Ordinal RPS（score 类型）</text>
+  <text x="1045" y="680" text-anchor="middle" class="small">评估概率质量，不只看 argmax</text>
+  <path d="M865 629 L895 629" class="arrow-purple"/>
+
+  <!-- group advantage -->
+  <rect x="1225" y="548" width="220" height="162" class="card card-purple"/>
+  <text x="1335" y="582" text-anchor="middle" class="head">组内相对优势</text>
+  <text x="1335" y="623" text-anchor="middle" class="eq">A(k) = (r(k) − μ) / σr</text>
+  <text x="1335" y="661" text-anchor="middle" class="small">在 K 个样本间标准化奖励</text>
+  <path d="M1195 629 L1225 629" class="arrow-purple"/>
+
+  <!-- policy gradient -->
+  <rect x="1475" y="548" width="250" height="162" class="card card-purple"/>
+  <text x="1600" y="582" text-anchor="middle" class="head">REINFORCE 策略损失</text>
+  <text x="1600" y="623" text-anchor="middle" class="eq">L_PG = −A(k) · log qθ(z^(k))</text>
+  <text x="1600" y="661" text-anchor="middle" class="small">提高高奖励样本的概率</text>
+  <path d="M1445 629 L1475 629" class="arrow-purple"/>
+
+  <!-- target feed -->
+  <!-- combined objective and optimizer -->
+  <rect x="510" y="777" width="455" height="100" class="card card-orange"/>
+  <text x="737" y="812" text-anchor="middle" class="head">联合训练目标</text>
+  <text x="737" y="848" text-anchor="middle" class="eq">L = L_CE + λ · L_PG</text>
+  <rect x="1070" y="777" width="300" height="100" class="card card-teal"/>
+  <text x="1220" y="812" text-anchor="middle" class="head">优化器更新参数</text>
+  <text x="1220" y="848" text-anchor="middle" class="eq">θ ← θ − η · grad(L)</text>
+  <path d="M220 710 L220 750 L635 750 L635 777" class="arrow-blue"/>
+  <path d="M1600 710 L1600 746 L850 746 L850 777" class="arrow-purple"/>
+  <path d="M965 827 L1070 827" class="arrow-orange"/>
+  <path d="M1220 777 L1220 740 L650 740 L650 403" class="arrow-green"/>
+  <text x="950" y="724" text-anchor="middle" class="tiny" fill="#27836b">梯度回传，更新模型参数</text>
+
+  <text x="60" y="929" class="lane">C  后验校准与评估</text>
+  <line x1="60" y1="943" x2="1740" y2="943" class="rule"/>
+
+  <rect x="70" y="980" width="280" height="145" class="card"/>
+  <text x="210" y="1017" text-anchor="middle" class="head">最佳验证集检查点</text>
+  <text x="210" y="1053" text-anchor="middle" class="body">按验证集 soft-target NLL 选择</text>
+  <text x="210" y="1085" text-anchor="middle" class="small">恢复最佳模型参数</text>
+
+  <rect x="405" y="980" width="300" height="145" class="card card-gold"/>
+  <text x="555" y="1017" text-anchor="middle" class="head">独立校准集</text>
+  <text x="555" y="1053" text-anchor="middle" class="body">收集 logits z 与目标 y*</text>
+  <text x="555" y="1085" text-anchor="middle" class="small">与训练 / 验证 / 测试集隔离</text>
+
+  <rect x="760" y="980" width="330" height="145" class="card card-green"/>
+  <text x="925" y="1017" text-anchor="middle" class="head">温度参数搜索</text>
+  <text x="925" y="1053" text-anchor="middle" class="eq">T* = argmin_T NLL(y*, softmax(z/T))</text>
+  <text x="925" y="1085" text-anchor="middle" class="small">按问题类型分别拟合 T</text>
+
+  <rect x="1145" y="980" width="270" height="145" class="card card-green"/>
+  <text x="1280" y="1017" text-anchor="middle" class="head">推理输出</text>
+  <text x="1280" y="1053" text-anchor="middle" class="eq">p_cal = softmax(z/T*)</text>
+  <text x="1280" y="1085" text-anchor="middle" class="small">校准概率 + argmax 决策</text>
+
+  <rect x="1470" y="980" width="260" height="145" class="card"/>
+  <text x="1600" y="1017" text-anchor="middle" class="head">留出测试集评估</text>
+  <text x="1600" y="1053" text-anchor="middle" class="body">NLL · Brier · ECE · Accuracy</text>
+  <text x="1600" y="1085" text-anchor="middle" class="small">在目标分布上验证校准效果</text>
+
+  <path d="M350 1052 L405 1052" class="arrow"/>
+  <path d="M705 1052 L760 1052" class="arrow-green"/>
+  <path d="M1090 1052 L1145 1052" class="arrow-green"/>
+  <path d="M1415 1052 L1470 1052" class="arrow"/>
+
+  <rect x="70" y="1152" width="1660" height="66" rx="10" fill="#f7f9fc" stroke="#e0e7ef"/>
+  <text x="90" y="1179" class="small"><tspan font-weight="700" fill="#334c6b">说明：</tspan>这是独立的 RLCD 风格教学实现，并非 TypeSafe 官方算法；若 y* 来自教师模型，优化目标是贴近教师概率，</text>
+  <text x="90" y="1201" class="small">不保证真实世界校准；脚本也未训练 act / escalate 头。</text>
+</svg>
